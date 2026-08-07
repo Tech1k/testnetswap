@@ -1,0 +1,22 @@
+{
+  "name": "@testnetswap/swap-taker",
+  "version": "0.1.0",
+  "description": "The shared, non-custodial, client-side TestnetSwap taker engine: relay client, esplora chain adapter, HTLC taker (tBTC<->tLTC) and adaptor-swap taker (tXMR->tBTC). Dependency-injected so the same files run in Node and vendor verbatim into the no-build sites (testnetswap.com, TestnetWallet).",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": { "test": "node --test" },
+  "exports": {
+    ".": "./src/index.js",
+    "./taker": "./src/taker.js",
+    "./relay": "./src/relay.js",
+    "./esplora": "./src/esplora.js",
+    "./buffer-shim": "./src/buffer-shim.js"
+  },
+  "dependencies": {
+    "@testnetswap/swap-core": "file:../swap-core",
+    "@testnetswap/swap-xmr": "file:../swap-xmr"
+  },
+  "author": "Tech1k",
+  "homepage": "https://testnetswap.com"
+}

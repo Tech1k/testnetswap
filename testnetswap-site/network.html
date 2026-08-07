@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | TestnetSwap © 2026 Tech1k -->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network · TestnetSwap makers</title>
+<meta name="description" content="Live directory of TestnetSwap makers: anyone can run a maker and join the network. Swap through any of them, non-custodially, from the same UI.">
+<meta property="og:title" content="Network · TestnetSwap makers">
+<meta property="og:description" content="Live directory of TestnetSwap makers: anyone can run a maker and join the network. Swap through any of them, non-custodially, from the same UI.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://testnetswap.com/network.html">
+<link rel="canonical" href="https://testnetswap.com/network.html">
+<meta property="og:image" content="https://testnetswap.com/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Network · TestnetSwap makers">
+<meta name="twitter:description" content="Live directory of TestnetSwap makers: anyone can run a maker and join the network. Swap through any of them, non-custodially, from the same UI.">
+<meta name="twitter:image" content="https://testnetswap.com/assets/og.png">
+<meta name="theme-color" content="#14161b">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<script src="/assets/theme-init.js?v=1"></script>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<nav class="navbar">
+  <a href="/" class="brand"><span class="brand-name">Testnet<b>Swap</b></span></a>
+  <input type="checkbox" class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" />
+  <label for="menu-toggle" class="hamburger"><div></div><div></div><div></div></label>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light / dark theme" title="Toggle theme"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/swap.html">Swap</a>
+    <a href="/network.html" id="curpage">Network</a>
+    <a href="/stats.html">Stats</a>
+    <a href="/how-it-works.html">How it works</a>
+    <a href="/api.html">API</a>
+    <a href="/donate.html">Donate</a>
+    <a href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener" class="ext">Source</a>
+  </div>
+</nav>
+
+<main id="main" class="filled">
+
+  <div class="card hero">
+    <div class="card-body">
+      <h1>The maker network</h1>
+      <p class="lede">TestnetSwap is an open protocol: anyone can run a maker and join. Swaps stay non-custodial, so a maker can never take your coins, only decline or stall (then you refund). Pick a maker below and swap, or run your own.</p>
+      <div class="statusline" id="statusline" role="status" aria-live="polite">
+        <span class="badge"><span class="dot dot-off" id="net-dot">●</span> <span id="net-text">Loading makers…</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="makers-host"></div>
+
+  <div class="card">
+    <h2 class="card-header">Be your own maker</h2>
+    <div class="card-body">
+      <div class="feature"><h3>Run the daemon</h3><p>The maker is a small Node service (AGPL-3.0). Fund it from <a href="https://cypherfaucet.com" target="_blank" rel="noopener" class="ext">CypherFaucet</a>, point it at the relay, and it registers itself with an ed25519 identity derived from your seed.</p></div>
+      <div class="feature"><h3>Join the network</h3><p>Print your maker id with <span class="mono">node src/main.js maker-id</span>, then <a href="https://github.com/Tech1k/testnetswap/issues/new?template=join-maker-network.yml" target="_blank" rel="noopener" class="ext">open a join request</a>. The operator adds it to the relay's allow-list and you show up here for takers to swap through. Prefer full independence? Run your own relay + site; it's all AGPL.</p></div>
+      <div class="feature"><h3>Trust model</h3><p>A maker's identity is verified by the relay; its rates, liquidity and swap counts are <b>self-reported</b> (shown but not trusted). Those counts are operational info, not a reputation score: most non-completions are taker-side (never funded, or closed the tab) or chain timing, and a refund is a safe outcome, not a maker failure. A <span class="vouched">✓ Vouched</span> badge means the <b>relay operator</b> has confirmed that maker's identity (a label no maker can self-claim), not endorsed it. It is never a safety guarantee: your safety never depends on the maker, because every swap is verified on-chain by your own browser. See the <a href="https://github.com/Tech1k/testnetswap/blob/HEAD/NETWORK.md" target="_blank" rel="noopener" class="ext">network spec</a>.</p></div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <a class="ext" href="https://cypherfaucet.com" target="_blank" rel="noopener">Faucet</a>
+    <a class="ext" href="https://testnetpool.com" target="_blank" rel="noopener">Pool</a>
+    <a class="ext" href="https://testnetscan.com" target="_blank" rel="noopener">Explorer</a>
+    <a class="ext" href="https://testnetwallet.net" target="_blank" rel="noopener">Wallet</a>
+    <a class="ext" href="https://cyphertoshi.com" target="_blank" rel="noopener">Guides</a>
+    <a href="/donate.html">Donate</a>
+    <a class="ext" href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener">Source</a>
+    <span class="faint">&middot;</span>
+    <span>Made by <a class="ext" href="https://tech1k.com" target="_blank" rel="noopener">Tech1k</a></span>
+    <span class="faint">&middot; non-custodial &middot; testnet only</span>
+  </div>
+</footer>
+<script type="module" src="/assets/network.js"></script>
+</body>
+</html>

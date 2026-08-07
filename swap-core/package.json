@@ -1,0 +1,20 @@
+{
+  "name": "@testnetswap/swap-core",
+  "version": "0.1.0",
+  "description": "Cross-chain HTLC atomic-swap protocol for TestnetSwap (tLTC <-> tBTC). Vendored deps, no build step; runs in the browser (TestnetWallet) and Node (the maker daemon).",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "vendor"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "author": "Tech1k",
+  "homepage": "https://testnetswap.com"
+}

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | TestnetSwap © 2026 Tech1k -->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- maker discovery API (Apache -> maker on the VPS). Must end in /api: the maker serves /api/status, /api/pairs, /api/quote. -->
+<meta name="testnetswap-api" content="https://api.testnetswap.com/api">
+<title>TestnetSwap · non-custodial cross-chain atomic swaps (tLTC ↔ tBTC, tXMR/sXMR → tBTC/tLTC)</title>
+<meta name="description" content="Non-custodial, on-demand atomic swaps between Bitcoin, Litecoin and Monero on testnet. You hold your own keys; nobody holds your coins. Testnet only.">
+<meta name="theme-color" content="#14161b">
+<meta property="og:title" content="TestnetSwap · non-custodial cross-chain atomic swaps">
+<meta property="og:description" content="Non-custodial, on-demand atomic swaps between Bitcoin, Litecoin and Monero on testnet. You hold your own keys; nobody holds your coins. Testnet only.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://testnetswap.com/">
+<link rel="canonical" href="https://testnetswap.com/">
+<meta property="og:image" content="https://testnetswap.com/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="TestnetSwap · non-custodial cross-chain atomic swaps">
+<meta name="twitter:description" content="Non-custodial, on-demand atomic swaps between Bitcoin, Litecoin and Monero on testnet. You hold your own keys; nobody holds your coins. Testnet only.">
+<meta name="twitter:image" content="https://testnetswap.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<script src="/assets/theme-init.js?v=1"></script>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<nav class="navbar">
+  <a href="/" class="brand"><span class="brand-name">Testnet<b>Swap</b></span></a>
+  <input type="checkbox" class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" />
+  <label for="menu-toggle" class="hamburger"><div></div><div></div><div></div></label>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light / dark theme" title="Toggle theme"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+  <div class="nav-links">
+    <a href="/" id="curpage">Home</a>
+    <a href="/swap.html">Swap</a>
+    <a href="/network.html">Network</a>
+    <a href="/stats.html">Stats</a>
+    <a href="/how-it-works.html">How it works</a>
+    <a href="/api.html">API</a>
+    <a href="/donate.html">Donate</a>
+    <a href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener" class="ext">Source</a>
+  </div>
+</nav>
+
+<main id="main" class="filled">
+
+  <div class="card hero">
+    <div class="card-body">
+      <h1>Swap testnet coins on demand, non-custodially</h1>
+      <p class="lede">Atomic swaps between <b>Litecoin testnet (tLTC)</b> and <b>Bitcoin testnet4 (tBTC)</b>, plus experimental <b>Monero (tXMR/sXMR)</b> swaps into either, where a maker offers them. You hold your own keys, so nobody ever holds your coins. If anything stalls, your browser can refund what you locked, minus network fees, after the deadline.</p>
+      <div class="statusline" id="statusline" role="status" aria-live="polite">
+        <span class="badge"><span class="dot dot-off" id="status-dot">●</span> <span id="status-text">Checking maker…</span></span>
+        <a class="badge" id="net-badge" href="/network.html" style="display:none"><span class="dot dot-off" id="net-dot">●</span> <span id="net-text"></span></a>
+        <span class="badge">Testnet only · free coins, no real value</span>
+        <span class="muted" id="status-extra"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">Swap</h2>
+    <div class="card-body">
+      <div class="swapbox">
+        <div class="leg">
+          <label for="amount">You send</label>
+          <div class="amount-in">
+            <input id="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" value="0.1">
+            <span class="coinpick"><img class="coin-ico" id="from-ico" src="/assets/coins/ltc.svg" alt="" aria-hidden="true"><select class="coin coin-sel" id="from-sel" aria-label="Coin you send">
+              <option value="tLTC">tLTC</option>
+              <option value="tBTC">tBTC</option>
+              <option value="tXMR" hidden>tXMR</option>
+              <option value="sXMR" hidden>sXMR</option>
+            </select></span>
+          </div>
+        </div>
+
+        <div class="flip">
+          <button class="flipbtn" id="flip" title="Flip direction" aria-label="Flip direction">⇅</button>
+        </div>
+
+        <div class="leg">
+          <label for="receive">You receive (estimated)</label>
+          <div class="amount-in"><output id="receive" class="recv-out">-</output><span class="coinpick"><img class="coin-ico" id="to-ico" src="/assets/coins/btc.svg" alt="" aria-hidden="true"><select class="coin coin-sel" id="to-sel" aria-label="Coin you receive"></select></span></div>
+        </div>
+
+        <div>
+          <div class="kv"><span class="muted">Rate</span> <span id="rate">-</span></div>
+          <div class="kv"><span class="muted">Min / Max</span> <span id="minmax">-</span></div>
+          <div class="kv"><span class="muted">Maker liquidity (free)</span> <span id="liq">-</span></div>
+        </div>
+
+        <div class="msg" id="quote-msg" style="display:none" role="status" aria-live="polite"></div>
+
+        <a class="formbtn" id="swap-btn" href="/swap.html" aria-disabled="true">Swap now →</a>
+        <div class="trust">
+          <span class="trust-item">🔒 Non-custodial</span>
+          <span class="trust-item">🔑 Keys never leave this browser</span>
+          <span class="trust-item">⚡ No sign-up</span>
+        </div>
+        <p class="muted center" style="font-size:13px;margin:8px 0 0">The swap runs in your browser on the <a href="/swap.html">swap page</a>. Or use it in <a href="https://testnetwallet.net" target="_blank" rel="noopener" class="ext">TestnetWallet</a>.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">Live</h2>
+    <div class="card-body">
+      <div class="rate-list" id="pairs-strip" aria-label="Supported swap pairs and rates"></div>
+      <div class="stats" id="stats">
+        <div class="stat"><div class="k">tBTC free</div><div class="v" id="s-liq-btc">-</div></div>
+        <div class="stat"><div class="k">tLTC free</div><div class="v" id="s-liq-ltc">-</div></div>
+        <div class="stat"><div class="k">Maker uptime</div><div class="v" id="s-uptime">-</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="totals-card" style="display:none">
+    <h2 class="card-header">All-time totals</h2>
+    <div class="card-body">
+      <div class="stats" id="totals-grid">
+        <div class="stat"><div class="k">Swaps completed</div><div class="v" id="s-swaps">-</div></div>
+        <div class="stat"><div class="k">Completion rate</div><div class="v" id="s-success">-</div></div>
+        <div class="stat"><div class="k">tLTC volume</div><div class="v" id="s-vol-ltc">-</div></div>
+        <div class="stat"><div class="k">tBTC volume</div><div class="v" id="s-vol-btc">-</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">How it works</h2>
+    <div class="card-body">
+      <div class="steps">
+        <div class="step"><div class="n"></div><div><h3>Setup</h3><p>You pick a pair and amount. Your browser and the maker agree the rate and two refund deadlines over a relay that only passes messages. It holds no keys or coins.</p></div></div>
+        <div class="step"><div class="n"></div><div><h3>You lock</h3><p>Your browser locks your coins in a hash-timelock contract (HTLC) on the send chain. Only you can refund it after your deadline.</p></div></div>
+        <div class="step"><div class="n"></div><div><h3>They lock</h3><p>The maker sees your funded contract and locks the other coin in a matching HTLC on the receive chain, with a shorter deadline.</p></div></div>
+        <div class="step"><div class="n"></div><div><h3>You claim</h3><p>You claim the maker's coins by revealing a secret. That same secret lets the maker claim yours. Swap complete, atomically.</p></div></div>
+      </div>
+      <p class="muted" style="margin-top:14px">The worst case if anything stalls: you reclaim what you locked, minus network fees, after your deadline. A maker can never take your coins: it can't claim yours without revealing the secret that lets you claim the maker's coins. <a href="/how-it-works.html">Read the details →</a></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">What this is</h2>
+    <div class="card-body">
+      <div class="feature"><h3>Non-custodial &amp; atomic</h3><p>The service never holds your funds. Coins are only ever in a contract that completes the swap or refunds to you.</p></div>
+      <div class="feature"><h3>Testnet only</h3><p>tLTC, tBTC and tXMR/sXMR are worthless test coins. This is infrastructure for builders, not a market. The rate is a fixed nominal value.</p></div>
+      <div class="feature"><h3>An open maker network</h3><p>Anyone can run a maker and join the <a href="/network.html">network</a>, and you pick which one fills your swap. Your safety never depends on the choice. Pairs are tLTC↔tBTC, plus tXMR/sXMR→tBTC (or tLTC where a maker offers it).</p></div>
+      <div class="feature"><h3>Monero (tXMR / sXMR → tBTC or tLTC)</h3><p>Monero swaps are <b>experimental</b> and run locally in your browser, where a maker offers them, using a cross-curve adaptor-signature protocol instead of the HTLC design. See <a href="/how-it-works.html">how it works</a>. Need test coins first? Use the <a href="https://cypherfaucet.com" target="_blank" rel="noopener" class="ext">faucet</a>.</p></div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <a class="ext" href="https://cypherfaucet.com" target="_blank" rel="noopener">Faucet</a>
+    <a class="ext" href="https://testnetpool.com" target="_blank" rel="noopener">Pool</a>
+    <a class="ext" href="https://testnetscan.com" target="_blank" rel="noopener">Explorer</a>
+    <a class="ext" href="https://testnetwallet.net" target="_blank" rel="noopener">Wallet</a>
+    <a class="ext" href="https://cyphertoshi.com" target="_blank" rel="noopener">Guides</a>
+    <a href="/donate.html">Donate</a>
+    <a class="ext" href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener">Source</a>
+    <span class="faint">&middot;</span>
+    <span>Made by <a class="ext" href="https://tech1k.com" target="_blank" rel="noopener">Tech1k</a></span>
+    <span class="faint">&middot; non-custodial &middot; testnet only</span>
+  </div>
+</footer>
+<script src="/assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "@testnetswap/swap-relay",
+  "version": "0.1.0",
+  "description": "Dumb WSS message pipe between TestnetSwap takers and the maker. Holds no funds, no keys.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "bin": { "swap-relay": "src/main.js" },
+  "scripts": { "start": "node src/main.js -c config.json", "test": "node --test" },
+  "dependencies": { "ws": "^8.18.0" },
+  "author": "Tech1k",
+  "homepage": "https://testnetswap.com"
+}

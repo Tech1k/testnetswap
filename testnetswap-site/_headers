@@ -1,0 +1,62 @@
+# Content-Security-Policy is set PER-PAGE below, never on /*, on purpose:
+# Cloudflare Pages JOINS (does not override) same-named headers across every matching rule,
+# so a CSP on /* would stack with a page's CSP and the browser would enforce the INTERSECTION,
+# which silently strips the swap page's 'wasm-unsafe-eval'/worker-src and breaks the Monero
+# engine. Pages also 308-redirects /x.html -> the clean /x, so each page is listed on BOTH
+# forms; a page left unlisted would land on the clean URL with NO CSP at all.
+# Rule of thumb: strict CSP everywhere; permissive ONLY on the swap app + the Monero worker.
+
+/*
+  X-Frame-Options: DENY
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+
+# STRICT CSP: every page except the swap app (listed on clean + .html URL forms)
+/
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/index.html
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/network
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/network.html
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/stats
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/stats.html
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/how-it-works
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/how-it-works.html
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/api
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/api.html
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/donate
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/donate.html
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+
+# PERMISSIVE CSP: the swap app (both URL forms) runs the tXMR->tBTC Monero engine (WASM +
+#    Web Worker), which needs 'wasm-unsafe-eval' + 'unsafe-eval' + worker-src + the Monero node
+#    origins in connect-src. The worker at /vendor/monero.worker.js runs WASM compile + node RPC
+#    under its OWN response CSP, so it needs its own identical rule. default-src is 'self' (not
+#    'none') here so the engine's same-origin module/worker loads (e.g. /vendor/swap-core) that
+#    fall through to the default directive aren't blocked; script/connect/worker are still locked.
+#    Cross-Origin-Embedder-Policy: require-corp + the /* Cross-Origin-Opener-Policy: same-origin
+#    make the page cross-origin ISOLATED, which monero-ts needs for SharedArrayBuffer (its wasm
+#    wallet is threaded). Safe because every cross-origin endpoint (api/relay/nodes/mempool/faucet)
+#    sends Access-Control-Allow-Origin, so CORS resources still load under require-corp.
+/swap
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://xmr-testnet-node.librenode.com https://xmr-stagenet-node.librenode.com https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+  Cross-Origin-Embedder-Policy: require-corp
+/swap.html
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://xmr-testnet-node.librenode.com https://xmr-stagenet-node.librenode.com https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+  Cross-Origin-Embedder-Policy: require-corp
+/vendor/monero.worker.js
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' https://xmr-testnet-node.librenode.com https://xmr-stagenet-node.librenode.com; object-src 'none'
+  Cross-Origin-Embedder-Policy: require-corp

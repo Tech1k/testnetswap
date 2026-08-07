@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | TestnetSwap © 2026 Tech1k -->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How TestnetSwap works: cross-chain atomic swaps</title>
+<meta name="description" content="How TestnetSwap performs non-custodial cross-chain atomic swaps between Bitcoin, Litecoin and Monero on testnet: HTLC for the Bitcoin-family legs, adaptor signatures for Monero.">
+<meta property="og:title" content="How TestnetSwap works: cross-chain atomic swaps">
+<meta property="og:description" content="How TestnetSwap performs non-custodial cross-chain atomic swaps between Bitcoin, Litecoin and Monero on testnet: HTLC for the Bitcoin-family legs, adaptor signatures for Monero.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://testnetswap.com/how-it-works.html">
+<link rel="canonical" href="https://testnetswap.com/how-it-works.html">
+<meta property="og:image" content="https://testnetswap.com/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How TestnetSwap works: cross-chain atomic swaps">
+<meta name="twitter:description" content="How TestnetSwap performs non-custodial cross-chain atomic swaps between Bitcoin, Litecoin and Monero on testnet: HTLC for the Bitcoin-family legs, adaptor signatures for Monero.">
+<meta name="twitter:image" content="https://testnetswap.com/assets/og.png">
+<meta name="theme-color" content="#14161b">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<script src="/assets/theme-init.js?v=1"></script>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<nav class="navbar">
+  <a href="/" class="brand"><span class="brand-name">Testnet<b>Swap</b></span></a>
+  <input type="checkbox" class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" />
+  <label for="menu-toggle" class="hamburger"><div></div><div></div><div></div></label>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light / dark theme" title="Toggle theme"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/swap.html">Swap</a>
+    <a href="/network.html">Network</a>
+    <a href="/stats.html">Stats</a>
+    <a href="/how-it-works.html" id="curpage">How it works</a>
+    <a href="/api.html">API</a>
+    <a href="/donate.html">Donate</a>
+    <a href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener" class="ext">Source</a>
+  </div>
+</nav>
+
+<main id="main" class="filled">
+
+  <div class="card hero">
+    <div class="card-body">
+      <h1>What it is</h1>
+      <p class="lede">TestnetSwap lets you swap one testnet coin for another without custody, without trusting the maker to hold your coins. It feels like a one-provider instant exchange (pick a pair, see the rate, confirm) but it is <b>not custodial</b>. Each Bitcoin-family swap is a cross-chain <b>HTLC atomic swap</b>: your funds are only ever in a contract that either completes the swap or refunds to you.</p>
+      <p class="muted">You are the taker and you run nothing but your browser. The other side of every swap is an always-on <b>maker</b> daemon: the default operator maker, or any maker you pick from the network. Makers fund from CypherFaucet, so there's never a wait for a second human. The maker sets the quoted rate and supplies the liquidity, but it never takes custody of your coins.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">The four steps</h2>
+    <div class="card-body">
+      <div class="steps">
+        <div class="step"><div class="n"></div><div><h3>Setup</h3><p>Your browser generates a random 32-byte secret <span class="mono">S</span> and computes its hash <span class="mono">H = SHA256(S)</span>. Over the relay (an untrusted message transport that never touches funds), your browser and the maker exchange <span class="mono">H</span>, both public keys, the amounts, and two absolute timelocks: <span class="mono">T1</span> for you (longer) and <span class="mono">T2</span> for the maker (shorter).</p></div></div>
+        <div class="step"><div class="n"></div><div><h3>You lock</h3><p>Your browser builds an HTLC on the <b>send chain</b> with deadline <span class="mono">T1</span>, funds it, and broadcasts. The contract pays the maker if it reveals <span class="mono">S</span>, or refunds to you after <span class="mono">T1</span>.</p></div></div>
+        <div class="step"><div class="n"></div><div><h3>They lock</h3><p>The maker waits for your funded contract to confirm, verifies it on-chain, then builds a matching HTLC on the <b>receive chain</b> with the shorter deadline <span class="mono">T2</span>, paying you if you reveal <span class="mono">S</span>, or refunding to the maker after <span class="mono">T2</span>.</p></div></div>
+        <div class="step"><div class="n"></div><div><h3>You claim</h3><p>Your browser verifies the maker's contract, then claims it by revealing <span class="mono">S</span> in the spend. You now have the receive-chain coins, and <span class="mono">S</span> is public on that chain. The maker reads <span class="mono">S</span> from your spend and uses it to claim your contract. Swap complete, atomically.</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">Why a maker can't take your coins</h2>
+    <div class="card-body">
+      <p>Atomicity is the whole point, and both contracts are bound to the same hash <span class="mono">H</span>. The maker cannot claim your contract until you reveal <span class="mono">S</span> by claiming the maker's contract first. Once your claim is visible on-chain, the maker can extract <span class="mono">S</span> and complete the other side. If the maker never posts a valid matching contract, your browser never reveals <span class="mono">S</span> at all.</p>
+      <p>If the maker vanishes after you lock, it never learns <span class="mono">S</span>, so it cannot touch your coins. After <span class="mono">T1</span> your browser can build and broadcast the refund. The worst case is that you <b>recover the principal you locked after the deadline, minus network fees.</b></p>
+      <div class="feature"><h3>The load-bearing rule: T1 &gt; T2</h3><p>You (who reveal the secret first) get the longer refund window. After you claim and reveal <span class="mono">S</span>, the maker needs time to see that spend and claim your contract before your own refund path opens. If the deadlines were inverted or too close, one side could be raced; TestnetSwap enforces a safe gap between them.</p></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">The contract</h2>
+    <div class="card-body">
+      <p>A P2WSH hash-timelock contract, identical on both chains (both are secp256k1 UTXO chains with Script):</p>
+      <pre class="code">OP_IF
+    OP_SIZE 0x20 OP_EQUALVERIFY          <span class="muted"># secret must be exactly 32 bytes</span>
+    OP_SHA256 &lt;secret_hash&gt; OP_EQUALVERIFY
+    OP_DUP OP_HASH160 &lt;recipient_pkh&gt;
+OP_ELSE
+    &lt;locktime&gt; OP_CHECKLOCKTIMEVERIFY OP_DROP
+    OP_DUP OP_HASH160 &lt;refund_pkh&gt;
+OP_ENDIF
+OP_EQUALVERIFY
+OP_CHECKSIG</pre>
+      <p class="muted">Redeem path (IF): reveal a 32-byte secret whose SHA256 matches, signed by the recipient. Refund path (ELSE): after the timelock (CLTV), signed by the refunder. Timelocks are time-based (wall-clock), so your browser can show a clear "refundable after HH:MM".</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">Monero swaps (tXMR / sXMR → tBTC or tLTC)</h2>
+    <div class="card-body">
+      <p>Monero has no on-chain scripts or timelocks, so the HTLC above can't hold it. Monero swaps use an <b>adaptor-signature</b> protocol instead: all the script and timelock logic lives on the <b>settle-coin</b> side (tBTC, or tLTC where a maker offers it) and a cross-curve (secp256k1 ↔ ed25519) proof binds the two. It runs entirely in this browser, like the HTLC swaps. The settle coin is just which Bitcoin-family chain the maker locks; the Monero side is identical either way.</p>
+      <div class="steps">
+        <div class="step"><div class="n"></div><div><h3>Maker locks the settle coin first</h3><p>You agree a quote over the relay; the maker locks its <b>settle coin</b> in a 2-of-2 contract with a cancel/refund path, and your browser verifies it on-chain before you move any Monero.</p></div></div>
+        <div class="step"><div class="n"></div><div><h3>You deposit tXMR</h3><p>Only after the settle-coin lock confirms do you send tXMR to a combined 2-of-2 lock address. Recovery material is saved <b>before</b> that, so a maker stall is always reclaimable.</p></div></div>
+        <div class="step"><div class="n"></div><div><h3>You receive the settle coin</h3><p>Your browser redeems the settle coin (tBTC or tLTC) to your address with an adaptor signature; that reveals the scalar the maker needs to claim the tXMR. Atomic: either both settle, or you reclaim your tXMR after the maker's refund.</p></div></div>
+      </div>
+      <p class="muted" style="font-size:13px;margin-top:6px">tXMR = Monero testnet, sXMR = stagenet; the picker offers whichever network the maker runs. This page lazy-loads a ~7 MB Monero wallet engine (WASM + a Web Worker) only when you pick a Monero coin, so it runs under a slightly looser Content-Security-Policy than the rest of the site. Keys still never leave your browser.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">What stays out</h2>
+    <div class="card-body">
+      <div class="feature"><h3>What Monero can't do</h3><p>tXMR/sXMR settle <b>into</b> tBTC (or tLTC), but not back out (no tBTC/tLTC → XMR yet). The reverse would take the liveness-critical BTC-provider role off the maker and push it onto your browser, making the maker the XMR provider instead, a role reassignment we haven't taken on. And <b>XMR ↔ XMR is impossible</b> atomically: two scriptless chains have nothing to anchor the swap.</p></div>
+      <div class="feature"><h3>Custody &amp; mainnet</h3><p>No custodial mode (it would defeat the purpose) and testnet only for now. The non-custodial design would port to mainnet, but that's a separate, heavier decision.</p></div>
+      <div class="feature"><h3>Privacy</h3><p>Non-custodial is not the same as private. The relay passes messages in plaintext and can see your IP, the amounts, the timing, and the addresses, so a swap is <b>safe</b> (nobody can take your coins) but <b>not anonymous</b>. That includes Monero swaps: moving tXMR/sXMR here does not hide it from the operator. Want network privacy? Reach the relay over Tor and treat amounts and timing as visible.</p></div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <a class="ext" href="https://cypherfaucet.com" target="_blank" rel="noopener">Faucet</a>
+    <a class="ext" href="https://testnetpool.com" target="_blank" rel="noopener">Pool</a>
+    <a class="ext" href="https://testnetscan.com" target="_blank" rel="noopener">Explorer</a>
+    <a class="ext" href="https://testnetwallet.net" target="_blank" rel="noopener">Wallet</a>
+    <a class="ext" href="https://cyphertoshi.com" target="_blank" rel="noopener">Guides</a>
+    <a href="/donate.html">Donate</a>
+    <a class="ext" href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener">Source</a>
+    <span class="faint">&middot;</span>
+    <span>Made by <a class="ext" href="https://tech1k.com" target="_blank" rel="noopener">Tech1k</a></span>
+    <span class="faint">&middot; non-custodial &middot; testnet only</span>
+  </div>
+</footer>
+</body>
+</html>

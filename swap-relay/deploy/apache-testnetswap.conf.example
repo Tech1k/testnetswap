@@ -1,0 +1,118 @@
+# TestnetSwap reverse proxy for Apache 2.4 on the VPS that runs swap-relay (:8910)
+# and the swap-maker status API (:8911).
+#
+# Enable the needed modules first:
+#   sudo a2enmod proxy proxy_http proxy_wstunnel rewrite ssl headers
+#   sudo systemctl restart apache2
+#
+# Get TLS certs (certbot will fill in the SSLCertificate* lines for you):
+#   sudo certbot --apache -d relay.testnetswap.com -d api.testnetswap.com
+# (or run certbot certonly and point the SSLCertificate* paths below at the result).
+#
+# DNS: A/AAAA records  relay.testnetswap.com  and  api.testnetswap.com  -> this VPS.
+
+# HTTP → HTTPS redirect (both hostnames)
+<VirtualHost *:80>
+    ServerName relay.testnetswap.com
+    ServerAlias api.testnetswap.com
+    RewriteEngine On
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=308,L]
+</VirtualHost>
+
+# relay.testnetswap.com → ws://127.0.0.1:8910  (browsers connect over WSS)
+<VirtualHost *:443>
+    ServerName relay.testnetswap.com
+
+    SSLEngine on
+    SSLCertificateFile      /etc/letsencrypt/live/relay.testnetswap.com/fullchain.pem
+    SSLCertificateKeyFile   /etc/letsencrypt/live/relay.testnetswap.com/privkey.pem
+    # Modern TLS only (or drop these two lines and rely on a hardened system-wide SSL policy).
+    SSLProtocol -all +TLSv1.2 +TLSv1.3
+    # HSTS on the subdomain (the site itself sets it via _headers).
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set X-Content-Type-Options "nosniff"
+    # Caps HTTP request BODIES only (health probes). It does NOT clip WebSocket frames: those are sent
+    # post-upgrade and are not HTTP request bodies, so the relay's 256 KiB maxPayloadBytes (the ~114 KB
+    # XMR bundle) is unaffected. Do not "reconcile" this number with maxPayloadBytes; they govern
+    # different layers.
+    LimitRequestBody 65536
+    # trustProxyHops:1 in the relay config depends on this: mod_proxy appends the real client
+    # IP to X-Forwarded-For, so the relay's per-IP limit works. Do not disable that.
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    # The relay is WebSocket-only. Upgrade requests → ws://, anything else → http://
+    # (mod_proxy_wstunnel handles the upgrade; the http fallback covers health probes).
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} =websocket [NC]
+    RewriteRule ^/?(.*)$ ws://127.0.0.1:8910/$1 [P,L]
+    RewriteCond %{HTTP:Upgrade} !=websocket [NC]
+    RewriteRule ^/?(.*)$ http://127.0.0.1:8910/$1 [P,L]
+    ProxyPassReverse / http://127.0.0.1:8910/
+
+    # WS connections are long-lived; don't let Apache time them out mid-swap.
+    ProxyTimeout 3700
+</VirtualHost>
+
+# SIZING (important)
+# mod_proxy_wstunnel holds one worker per live WebSocket for the tunnel's whole life. The relay allows
+# up to maxTakers(500) + maxMakers(64) = 564 concurrent WS, but the event MPM defaults to
+# MaxRequestWorkers 400, BELOW that, so Apache would 503 legit takers before the relay's own limits
+# engage, silently undercutting the relay's DoS tuning. Use the event MPM and raise the worker ceiling
+# to comfortably exceed the relay caps, e.g. in your MPM config:
+#   <IfModule mpm_event_module>
+#     ServerLimit 16
+#     ThreadsPerChild 64
+#     MaxRequestWorkers 1024      # >= maxTakers + maxMakers + headroom; keep in sync with the relay config
+#   </IfModule>
+# Also add mod_reqtimeout (bounds slowloris-style handshake holds) and consider a per-IP new-connection
+# rate limit at the edge (mod_qos / mod_evasive), which the relay's per-MESSAGE throttle cannot provide.
+
+# api.testnetswap.com → http://127.0.0.1:8911  (read-only maker status/discovery)
+# NOTE: the maker already sends `Access-Control-Allow-Origin: *`; do NOT add a CORS
+# header here, or the browser sees two ACAO values and rejects the response.
+<VirtualHost *:443>
+    ServerName api.testnetswap.com
+
+    SSLEngine on
+    SSLCertificateFile      /etc/letsencrypt/live/api.testnetswap.com/fullchain.pem
+    SSLCertificateKeyFile   /etc/letsencrypt/live/api.testnetswap.com/privkey.pem
+    SSLProtocol -all +TLSv1.2 +TLSv1.3
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set X-Content-Type-Options "nosniff"
+    # Read-only GET API; no request body is ever needed.
+    LimitRequestBody 8192
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+    ProxyPass        /  http://127.0.0.1:8911/
+    ProxyPassReverse /  http://127.0.0.1:8911/
+</VirtualHost>
+
+# (Optional) serving the STATIC SITE via Apache instead of Cloudflare Pages
+# The site's security headers normally come from testnetswap-site/_headers (Pages-specific).
+# If you host the static files on Apache, replicate the CSP here; the page <meta> CSP alone
+# omits connect-src (audit L3). Change the hosts to YOUR relay / api / Monero nodes.
+# <VirtualHost *:443>
+#     ServerName testnetswap.com
+#     DocumentRoot /var/www/testnetswap-site
+#     SSLEngine on
+#     SSLCertificateFile    /etc/letsencrypt/live/testnetswap.com/fullchain.pem
+#     SSLCertificateKeyFile /etc/letsencrypt/live/testnetswap.com/privkey.pem
+#     SSLProtocol -all +TLSv1.2 +TLSv1.3
+#     Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+#     Header always set X-Content-Type-Options "nosniff"
+#     Header always set Referrer-Policy "no-referrer"
+#     Header always set Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
+#     # /swap.html additionally needs the Monero WASM engine + worker + nodes (kept off every other page).
+#     # MUST mirror the Cloudflare _headers /swap rule: default-src 'self' (not 'none') so same-origin
+#     # module/worker loads that fall through resolve; script-src adds blob:; worker-src adds blob:; plus
+#     # Cross-Origin-Embedder-Policy require-corp + Cross-Origin-Opener-Policy same-origin, which the
+#     # threaded Monero WASM (SharedArrayBuffer) requires. Without COEP/COOP the Monero swap will not run.
+#     <Files "swap.html">
+#       Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://xmr-testnet-node.librenode.com https://xmr-stagenet-node.librenode.com https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
+#       Header always set Cross-Origin-Embedder-Policy "require-corp"
+#       Header always set Cross-Origin-Opener-Policy "same-origin"
+#     </Files>
+# </VirtualHost>

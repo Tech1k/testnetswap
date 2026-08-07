@@ -1,0 +1,27 @@
+{
+  "name": "@testnetswap/swap-maker",
+  "version": "0.1.0",
+  "description": "The always-on TestnetSwap maker daemon: faucet-funded tLTC/tBTC pools, reservation accounting, limits, and HTLC swap orchestration. Imports swap-core.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "bin": { "swap-maker": "src/main.js" },
+  "scripts": {
+    "start": "node src/main.js -c config.json",
+    "taker": "node tools/cli-taker.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@testnetswap/swap-core": "file:../swap-core",
+    "@testnetswap/swap-xmr": "file:../swap-xmr",
+    "monero-ts": "^0.11.10",
+    "ws": "^8.18.0"
+  },
+  "comment_overrides": "Force monero-ts's transitive deps past their advisory ranges (serialize-javascript<=7.0.2 RCE GHSA-5c6j-r48x-rmvq; uuid<11.1.1 GHSA-w5hq-g745-h8pq). monero-ts never imports either (dead deps), so the bump is inert; this just keeps `npm audit` clean. Re-run the monero-ts smoke test after any monero-ts upgrade.",
+  "overrides": {
+    "serialize-javascript": ">=7.0.6",
+    "uuid": ">=11.1.1"
+  },
+  "author": "Tech1k",
+  "homepage": "https://testnetswap.com"
+}

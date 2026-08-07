@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | TestnetSwap © 2026 Tech1k -->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TestnetSwap status &amp; discovery API</title>
+<meta name="description" content="Read-only JSON status and discovery API for TestnetSwap: pairs, quotes, and maker status.">
+<meta property="og:title" content="TestnetSwap status &amp; discovery API">
+<meta property="og:description" content="Read-only JSON status and discovery API for TestnetSwap: pairs, quotes, and maker status.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://testnetswap.com/api.html">
+<link rel="canonical" href="https://testnetswap.com/api.html">
+<meta property="og:image" content="https://testnetswap.com/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="TestnetSwap status &amp; discovery API">
+<meta name="twitter:description" content="Read-only JSON status and discovery API for TestnetSwap: pairs, quotes, and maker status.">
+<meta name="twitter:image" content="https://testnetswap.com/assets/og.png">
+<meta name="theme-color" content="#14161b">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<script src="/assets/theme-init.js?v=1"></script>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<nav class="navbar">
+  <a href="/" class="brand"><span class="brand-name">Testnet<b>Swap</b></span></a>
+  <input type="checkbox" class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" />
+  <label for="menu-toggle" class="hamburger"><div></div><div></div><div></div></label>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light / dark theme" title="Toggle theme"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/swap.html">Swap</a>
+    <a href="/network.html">Network</a>
+    <a href="/stats.html">Stats</a>
+    <a href="/how-it-works.html">How it works</a>
+    <a href="/api.html" id="curpage">API</a>
+    <a href="/donate.html">Donate</a>
+    <a href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener" class="ext">Source</a>
+  </div>
+</nav>
+
+<main id="main" class="filled">
+
+  <div class="card hero">
+    <div class="card-body">
+      <h1>Status &amp; discovery API</h1>
+      <p class="lede">Read-only JSON. No keys, no state mutation, the same posture as the CypherFaucet / TestnetPool APIs. The swap page uses it to quote; the stats page reads it for live liquidity. Base URL: <span class="mono">https://api.testnetswap.com/api</span>.</p>
+      <p class="muted">Amounts appear both in display units (e.g. <span class="mono">tBTC</span>) and integer satoshis (<span class="mono">*_sats</span>) so clients can avoid floating-point drift.</p>
+      <p class="muted">Every response carries a common envelope: <span class="mono">ok</span> (boolean), <span class="mono">api_version</span> (integer, bumped only on breaking schema changes), <span class="mono">generated_at</span> (unix seconds the response was produced, for cache/freshness logic), and <span class="mono">source</span>. The examples below omit the envelope for brevity except where noted. Numbers in them are illustrative. Call the endpoint for live rates and limits.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">GET /api/pairs</h2>
+    <div class="card-body">
+      <p>Supported pairs with the current rate, limits, and <b>free</b> liquidity (total minus what's committed to in-flight swaps).</p>
+      <pre class="code">{
+  "ok": true,
+  "pairs": [
+    { "from": "tLTC", "to": "tBTC", "rate": 0.01,
+      "min": 0.001, "max": 0.5,
+      "min_sats": 100000, "max_sats": 50000000,
+      "liquidity_free": 0.00994694, "liquidity_free_sats": 994694,
+      "liquidity_unit": "tBTC" },
+    { "from": "tBTC", "to": "tLTC", ... }
+  ]
+}</pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">GET /api/quote</h2>
+    <div class="card-body">
+      <p>Query: <span class="mono">?from=tLTC&amp;to=tBTC&amp;amount=0.5</span>. Quotes against <b>free</b> liquidity, so a pending swap never over-commits the pool.</p>
+      <pre class="code">{
+  "ok": true,
+  "from": "tLTC", "to": "tBTC",
+  "send": 0.5, "receive": 0.005,
+  "send_sats": 50000000, "receive_sats": 500000,
+  "rate": 0.01, "fee": 0,
+  "min": 0.001, "max": 0.5
+}</pre>
+      <p class="muted">On failure: <span class="mono">{ "ok": false, "reason": "..." }</span>, e.g. below min, above max, or over free liquidity. Note this still returns HTTP <span class="mono">200</span>; check the <span class="mono">ok</span> field.</p>
+      <p class="muted">This REST quote is <b>indicative</b>: the rate is a fixed nominal value, with no reserved quote id or expiry attached. The <b>binding</b> quote for a real swap is negotiated at swap start over the WSS relay and bound to the amounts and timelocks then, so re-quote right before you swap.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">GET /api/status</h2>
+    <div class="card-body">
+      <p>Maker health and live liquidity. Drives uptime monitoring and the "maker online" indicator.</p>
+      <pre class="code">{
+  "ok": true,
+  "maker_online": true,
+  "pairs_up": ["tLTC-tBTC", "tBTC-tLTC"],
+  "liquidity": {
+    "tBTC": { "total": 1000000, "committed": 0, "free": 994694 },
+    "tLTC": { "total": 499714, "committed": 0, "free": 499714 },
+    "tBTC:xmr-funding": { "total": 500000, "committed": 0, "free": 500000 },
+    "tLTC:xmr-funding": { "total": 250000, "committed": 0, "free": 250000 }
+  },
+  "active_swaps": 0,
+  "xmr": {
+    "enabled": true,
+    "networks": ["testnet", "stagenet"],
+    "tickers": ["tXMR", "sXMR"],
+    "settle": ["tBTC", "tLTC"],
+    "rates": { "tBTC": 0.01, "tLTC": 0.7 },
+    "free": { "tBTC": 500000, "tLTC": 250000 },
+    "min_pico": 1000000000, "max_pico": 50000000000,
+    "rate_tbtc_per_xmr": 0.01,
+    "active": 0, "max_concurrent": 4
+  },
+  "uptime_secs": 76,
+  "version": "0.1.0",
+  "api_version": 1,
+  "generated_at": 1783681073,
+  "source": "https://github.com/Tech1k/testnetswap"
+}</pre>
+      <p class="muted">The <span class="mono">liquidity</span> object is in <b>integer satoshis</b> (<span class="mono">total</span> / <span class="mono">committed</span> / <span class="mono">free</span> per coin). The <span class="mono">&lt;coin&gt;:xmr-funding</span> keys (e.g. <span class="mono">tBTC:xmr-funding</span>, <span class="mono">tLTC:xmr-funding</span>) mirror the confirmed free balance of each XMR <b>settle</b> funding address (the dedicated pool the maker locks for a Monero swap, separate from the HTLC pool) so <span class="mono">committed</span> is always 0 there; a key is present only when that coin is XMR-funded. <span class="mono">uptime_secs</span> counts from when the status server started; <span class="mono">version</span> is the maker build. <span class="mono">xmr</span> advertises the native Monero-swap capability so a client can offer exactly the networks the maker serves (<span class="mono">{ "enabled": false }</span> when off); <span class="mono">min_pico</span>/<span class="mono">max_pico</span> are piconero, <span class="mono">settle</span> lists the coins XMR can settle to with per-coin <span class="mono">rates</span>, and <span class="mono">free</span> is the confirmed sats available at each settle funding address (same numbers as the <span class="mono">:xmr-funding</span> liquidity keys). (This example shows the full envelope.)</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">GET /api/stats</h2>
+    <div class="card-body">
+      <p>Cumulative, all-time service totals (the maker counts every swap before it's reaped). Powers the <a href="/stats.html">Stats</a> page.</p>
+      <pre class="code">{
+  "ok": true,
+  "completed": 42,
+  "refunded": 3,
+  "failed": 1,
+  "total": 46,
+  "success_rate": 0.933,
+  "volume":      { "tLTC": 128.4, "tBTC": 0.1052, "tXMR": 2.5 },
+  "volume_sats": { "tLTC": 12840000000, "tBTC": 10520000, "tXMR": 2500000000000 },
+  "by_pair":     { "tLTC->tBTC": 30, "tBTC->tLTC": 12, "tXMR->tBTC": 8 },
+  "by_day": {
+    "2026-07-09": { "completed": 5, "refunded": 0, "volume": { "tLTC": 1500000000, "tBTC": 1230000 } },
+    "2026-07-10": { "completed": 3, "refunded": 1, "volume": { "tLTC": 900000000,  "tBTC": 738000  } }
+  },
+  "first_at": 1782660054,
+  "last_at":  1783681073,
+  "active_swaps": 0,
+  "uptime_secs": 76
+}</pre>
+      <p class="muted"><span class="mono">volume</span> is in display units (coins for tBTC/tLTC, XMR for tXMR/sXMR) and <span class="mono">volume_sats</span> is <b>raw</b>: satoshis for tBTC/tLTC but <b>piconero</b> (1e12/XMR) for tXMR/sXMR, so a client derives amounts as <span class="mono">value / 1e12</span> for XMR and <span class="mono">value / 1e8</span> otherwise. <span class="mono">by_day</span> is a per-day series (keyed <span class="mono">YYYY-MM-DD</span>, UTC) with per-day volume in the same raw units (sats for tBTC/tLTC, pico for XMR), kept for the most recent 200 days; it powers the activity chart on the Stats page.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">Monero swaps (over the WSS relay)</h2>
+    <div class="card-body">
+      <p>Native tXMR/sXMR → tBTC/tLTC swaps are <b>not</b> part of this HTTP API. They run over the WSS relay (the same one HTLC swaps use), because they're an interactive multi-message protocol, not a request/response. The HTTP API only <em>advertises</em> the capability via <span class="mono">status.xmr</span> (above). The relay preamble a taker uses:</p>
+      <pre class="code">taker → maker : { "type": "xmr_request_quote", "from": "tXMR", "to": "tBTC",
+                  "send_pico": 5000000000, "quote_only": true }
+maker → taker : { "type": "xmr_quote", "lock_sats": 5000, "xmr_pico": 5000000000,
+                  "t1_blocks": 72, "t2_blocks": 72, "rate": 0.01,
+                  "network": "testnet", "to": "tBTC" }</pre>
+      <p class="muted">The from-ticker selects the Monero network: <span class="mono">tXMR</span> = testnet, <span class="mono">sXMR</span> = stagenet. A maker that doesn't serve that network replies <span class="mono">{ "type": "xmr_error", "reason": "…" }</span>. With <span class="mono">quote_only:true</span> the maker just prices it; without it, the maker begins the adaptor swap on that session and the two sides exchange the driver messages (<span class="mono">bundle</span>, <span class="mono">lock_outpoint</span>, <span class="mono">cancel_presig</span>, <span class="mono">refund_adaptor</span>, <span class="mono">btc_locked</span>, <span class="mono">xmr_locked</span>, <span class="mono">redeem_adaptor</span>). The full construction is in the <a href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener" class="ext">source</a> (<span class="mono">swap-xmr</span>).</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">Status codes &amp; rate limits</h2>
+    <div class="card-body">
+      <ul style="margin:0 0 .6em;padding-left:1.2em;line-height:1.9">
+        <li><span class="mono">200</span>: request handled. Always check <span class="mono">ok</span>: a valid-but-unfillable request (quote below the minimum, over free liquidity) still returns 200 with <span class="mono">ok:false</span> and a <span class="mono">reason</span>.</li>
+        <li><span class="mono">400</span>: malformed request URL.</li>
+        <li><span class="mono">404</span>: unknown endpoint.</li>
+        <li><span class="mono">405</span>: any method other than <span class="mono">GET</span> / <span class="mono">OPTIONS</span>.</li>
+      </ul>
+      <p class="muted">There is currently no application-level rate limit on this read-only API, though that may change. Please cache where you can and lean on <span class="mono">generated_at</span> instead of polling aggressively; a reverse proxy in front of the maker may add its own limits and return <span class="mono">429</span>.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">Deep-link into a swap</h2>
+    <div class="card-body">
+      <p>Any app (e.g. a wallet's "Swap" button) can hand off to the in-browser swap, pre-filling the form via <span class="mono">/swap.html</span> query params. No SDK, no embed:</p>
+      <pre class="code">https://testnetswap.com/swap.html?from=tLTC&amp;to=tBTC&amp;amount=0.1&amp;dest=&lt;tBTC address&gt;
+
+# params (all optional):
+#   from    tLTC | tBTC | tXMR | sXMR   coin the user sends (XMR -&gt; tBTC, or tLTC if the maker offers it)
+#   to      tBTC | tLTC                 receive coin (derived from `from` if omitted)
+#   amount  &lt;number&gt;                    send amount
+#   dest    &lt;address&gt;                   receive address (used only if valid for the receive coin)
+#   refund  &lt;monero address&gt;            tXMR refund address, for a Monero swap
+#   maker   &lt;maker_id&gt;                  route through a specific maker (see /roster)</pre>
+      <p class="muted">Every param is validated before use and only ever populates a form field. The swap still runs entirely in the user's browser, non-custodially, with keys generated there. Nothing is pre-authorized; the user reviews and starts the swap.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">Notes</h2>
+    <div class="card-body">
+      <p class="muted">All responses are read-only and CORS-enabled. The swap itself runs over a separate WSS relay (your browser talks to a maker directly); this HTTP API is only for discovery and status. Multiple makers can register on the relay: the live roster is served at <span class="mono">/roster</span>, and a taker binds to one via <span class="mono">?maker=&lt;id&gt;</span>. See the <a href="/network.html">network</a> page and the <a href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener" class="ext">source</a>.</p>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <a class="ext" href="https://cypherfaucet.com" target="_blank" rel="noopener">Faucet</a>
+    <a class="ext" href="https://testnetpool.com" target="_blank" rel="noopener">Pool</a>
+    <a class="ext" href="https://testnetscan.com" target="_blank" rel="noopener">Explorer</a>
+    <a class="ext" href="https://testnetwallet.net" target="_blank" rel="noopener">Wallet</a>
+    <a class="ext" href="https://cyphertoshi.com" target="_blank" rel="noopener">Guides</a>
+    <a href="/donate.html">Donate</a>
+    <a class="ext" href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener">Source</a>
+    <span class="faint">&middot;</span>
+    <span>Made by <a class="ext" href="https://tech1k.com" target="_blank" rel="noopener">Tech1k</a></span>
+    <span class="faint">&middot; non-custodial &middot; testnet only</span>
+  </div>
+</footer>
+</body>
+</html>

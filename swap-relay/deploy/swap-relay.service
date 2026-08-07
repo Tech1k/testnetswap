@@ -1,0 +1,50 @@
+# systemd unit for the TestnetSwap relay (the dumb WSS message pipe).
+# Holds no keys and no coins; safe to restart any time. See ../README.md and
+# ../../DEPLOY.md.
+#
+# Install:
+#   sudo useradd --system --no-create-home --shell /usr/sbin/nologin swap-relay
+#   sudo mkdir -p /opt/testnetswap && sudo cp -r swap-relay /opt/testnetswap/
+#   sudo mkdir -p /etc/swap-relay && sudo cp config.example.json /etc/swap-relay/config.json   # then edit makerToken
+#   # makerToken can instead come from the RELAY_MAKER_TOKEN env (see EnvironmentFile below)
+#   sudo cp deploy/swap-relay.service /etc/systemd/system/
+#   sudo systemctl enable --now swap-relay
+#
+# Adjust ExecStart's node path to match your install (e.g. /usr/bin/node).
+
+[Unit]
+Description=TestnetSwap relay (WSS message pipe)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=swap-relay
+Group=swap-relay
+WorkingDirectory=/opt/testnetswap/swap-relay
+# Secrets (optional): a file with RELAY_MAKER_TOKEN=... ; chmod 600, owned by swap-relay
+EnvironmentFile=-/etc/swap-relay/env
+ExecStart=/usr/bin/node src/main.js -c /etc/swap-relay/config.json
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+# The relay holds up to maxTakers+maxMakers (~564) long-lived sockets plus proxy fds; the default
+# file-descriptor ceiling can be tight. Size this above the relay's connection caps.
+LimitNOFILE=8192
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

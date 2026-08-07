@@ -1,0 +1,10 @@
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+node_modules/
+npm-debug.log*
+config.json
+config.*.json
+!config.example.json

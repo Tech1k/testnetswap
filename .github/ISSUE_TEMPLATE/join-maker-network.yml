@@ -1,0 +1,64 @@
+name: Join the maker network
+description: Request to have your maker listed on the TestnetSwap network (relay.testnetswap.com).
+title: "[maker] add <your maker name> to the network"
+labels: ["maker-network"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for running a maker! The network is **permissioned by default**, so to appear on the
+        [network directory](https://testnetswap.com/network.html) the operator adds your `maker_id`
+        to the relay's allow-list. Fill this in and we'll get you listed.
+
+        **Testnet only**: no real-value coins. Swaps are non-custodial either way, so being listed
+        never affects a taker's safety (their browser verifies every swap on-chain).
+  - type: input
+    id: maker_id
+    attributes:
+      label: Your maker_id
+      description: "The 64-hex ed25519 id. Print it with `node src/main.js maker-id` in swap-maker."
+      placeholder: "aca62c62e8…  (64 hex characters)"
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Maker name / operator
+      description: How you'd like to be shown here (also set `info.name` in your maker config). Optional.
+      placeholder: "e.g. Acme Testnet Maker"
+    validations:
+      required: false
+  - type: checkboxes
+    id: pairs
+    attributes:
+      label: Pairs you serve
+      description: Tick everything your maker fills.
+      options:
+        - label: "tLTC ↔ tBTC (HTLC)"
+        - label: "tXMR → tBTC / tLTC (Monero testnet)"
+        - label: "sXMR → tBTC / tLTC (Monero stagenet)"
+  - type: input
+    id: relay
+    attributes:
+      label: Relay you're connecting to
+      value: "relay.testnetswap.com"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Contact, uptime plans, why you're joining; all optional.
+    validations:
+      required: false
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: "This is testnet only; I'm not implying any real-value service."
+          required: true
+        - label: "Listing is at the operator's discretion, and the ✓ Vouched badge is a separate, operator-only trust hint I'm not requesting or entitled to here."
+          required: true
+        - label: "I've read the network spec (NETWORK.md)."
+          required: false

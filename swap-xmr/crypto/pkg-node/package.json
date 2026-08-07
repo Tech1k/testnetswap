@@ -1,0 +1,13 @@
+{
+  "name": "swap-xmr-crypto",
+  "description": "Cross-curve DLEQ + ECDSA adaptor-signature core for TestnetSwap's BTC/LTC<->XMR atomic swaps. Compiles to WASM for the browser taker and Node maker.",
+  "version": "0.1.0",
+  "license": "AGPL-3.0-or-later",
+  "files": [
+    "swap_xmr_crypto_bg.wasm",
+    "swap_xmr_crypto.js",
+    "swap_xmr_crypto.d.ts"
+  ],
+  "main": "swap_xmr_crypto.js",
+  "types": "swap_xmr_crypto.d.ts"
+}

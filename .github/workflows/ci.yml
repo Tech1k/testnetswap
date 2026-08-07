@@ -1,0 +1,44 @@
+# CI gate: runs every package's test suite AND the vendored-crypto integrity check on each push/PR.
+# The suites use `node --test` (also aliased as `npm test` in each package).
+#
+# IMPORTANT: the test suites reach ACROSS packages into sibling src -- e.g. swap-taker's HTLC test
+# drives a real swap-maker (imports swap-maker/src/maker.js, which imports `ws`), and swap-relay's
+# test imports swap-maker/src/identity.js. So every package's deps must be installed BEFORE any test
+# runs; installing-and-testing one package at a time fails when a sibling's deps aren't present yet.
+# check-vendor.mjs is the project's own fund-safety regression guard (it once caught a swap.js shipped
+# without the MAX_T_BLOCKS cap); it must run somewhere automated, not only when a human types it.
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Install ALL package deps first (swap-core has none). Siblings must be installed before any
+      # cross-package test import resolves.
+      - name: Install deps
+        run: |
+          for d in swap-xmr swap-taker swap-maker swap-relay; do
+            echo "== npm ci: $d =="
+            (cd "$d" && npm ci)
+          done
+
+      # Then run every suite (default bash -e fails the job on the first suite that fails).
+      - name: Test all packages
+        run: |
+          for d in swap-core swap-xmr swap-taker swap-maker swap-relay; do
+            echo "== node --test: $d =="
+            (cd "$d" && node --test)
+          done
+
+      - name: Vendored-crypto integrity (no drift + VENDOR.lock)
+        run: node testnetswap-site/tools/check-vendor.mjs

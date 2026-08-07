@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="TestnetSwap - non-custodial cross-chain atomic swaps, testnet">
+  <rect width="1200" height="630" fill="#14161b"/>
+  <text x="600" y="315" text-anchor="middle" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="150" font-weight="800" letter-spacing="-3">
+    <tspan fill="#e8ecf2">Testnet</tspan><tspan fill="#5271ff">Swap</tspan>
+  </text>
+  <text x="600" y="405" text-anchor="middle" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="36" font-weight="400" fill="#9aa4b2">Non-custodial cross-chain atomic swaps · testnet</text>
+</svg>

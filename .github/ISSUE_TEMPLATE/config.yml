@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Run a maker (network spec)
+    url: https://github.com/Tech1k/testnetswap/blob/HEAD/NETWORK.md
+    about: How to run the maker daemon, the relay protocol, and how registration works.
+  - name: How it works
+    url: https://testnetswap.com/how-it-works.html
+    about: The atomic-swap protocol and the trust model.

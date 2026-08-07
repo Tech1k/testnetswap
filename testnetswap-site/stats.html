@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | TestnetSwap © 2026 Tech1k -->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="testnetswap-api" content="https://api.testnetswap.com/api">
+<title>Stats · TestnetSwap</title>
+<meta name="description" content="Live and all-time stats for TestnetSwap: swaps completed, volume, completion rate, and per-pair breakdown. Non-custodial, testnet only.">
+<meta property="og:title" content="Stats · TestnetSwap">
+<meta property="og:description" content="Live and all-time stats for TestnetSwap: swaps completed, volume, completion rate, and per-pair breakdown. Non-custodial, testnet only.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://testnetswap.com/stats.html">
+<link rel="canonical" href="https://testnetswap.com/stats.html">
+<meta property="og:image" content="https://testnetswap.com/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Stats · TestnetSwap">
+<meta name="twitter:description" content="Live and all-time stats for TestnetSwap: swaps completed, volume, completion rate, and per-pair breakdown. Non-custodial, testnet only.">
+<meta name="twitter:image" content="https://testnetswap.com/assets/og.png">
+<meta name="theme-color" content="#14161b">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<script src="/assets/theme-init.js?v=1"></script>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<nav class="navbar">
+  <a href="/" class="brand"><span class="brand-name">Testnet<b>Swap</b></span></a>
+  <input type="checkbox" class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" />
+  <label for="menu-toggle" class="hamburger"><div></div><div></div><div></div></label>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light / dark theme" title="Toggle theme"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/swap.html">Swap</a>
+    <a href="/network.html">Network</a>
+    <a href="/stats.html" id="curpage">Stats</a>
+    <a href="/how-it-works.html">How it works</a>
+    <a href="/api.html">API</a>
+    <a href="/donate.html">Donate</a>
+    <a href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener" class="ext">Source</a>
+  </div>
+</nav>
+
+<main id="main" class="filled">
+
+  <div class="card hero">
+    <div class="card-body">
+      <h1>Stats</h1>
+      <p class="lede">Live and all-time numbers for the operator's maker (the default one behind testnetswap.com). Other makers on the network report their own. Non-custodial, testnet only.</p>
+      <div class="statusline" id="statusline" role="status" aria-live="polite">
+        <span class="badge"><span class="dot dot-off" id="status-dot">●</span> <span id="status-text">Checking maker…</span></span>
+        <span class="muted" id="status-extra"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">All-time totals</h2>
+    <div class="card-body">
+      <div class="stats" id="t-stats">
+        <div class="stat"><div class="k">Swaps completed</div><div class="v" id="t-completed">-</div></div>
+        <div class="stat"><div class="k">Completion rate</div><div class="v" id="t-success">-</div></div>
+        <div class="stat"><div class="k">Safely refunded</div><div class="v" id="t-refunded">-</div></div>
+        <div class="stat"><div class="k">Active now</div><div class="v" id="t-active">-</div></div>
+      </div>
+      <div class="muted" style="font-size:13px;margin-top:12px">Completion rate is the share of <b>settled</b> swaps (completed or safely refunded) that completed, not a maker trust score. The rest were safely refunded (the recovery path working); swaps a taker abandoned before both sides locked do not count toward it.</div>
+      <div class="muted" id="t-since" style="font-size:13px;margin-top:6px"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">Maker liquidity</h2>
+    <div class="card-body">
+      <p class="muted" style="margin:.1em 0 1em;font-size:13px">Live depth in the maker's pools. Committed is reserved for in-flight swaps; free is quotable right now.</p>
+      <div id="t-liq"><div class="muted">Loading…</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">Activity <span class="muted sub">completed &amp; safely refunded, per day</span></h2>
+    <div class="card-body">
+      <div id="t-chart"><div class="muted">Loading…</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">By pair</h2>
+    <div class="card-body">
+      <div id="t-pairs"><div class="muted">Loading…</div></div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <a class="ext" href="https://cypherfaucet.com" target="_blank" rel="noopener">Faucet</a>
+    <a class="ext" href="https://testnetpool.com" target="_blank" rel="noopener">Pool</a>
+    <a class="ext" href="https://testnetscan.com" target="_blank" rel="noopener">Explorer</a>
+    <a class="ext" href="https://testnetwallet.net" target="_blank" rel="noopener">Wallet</a>
+    <a class="ext" href="https://cyphertoshi.com" target="_blank" rel="noopener">Guides</a>
+    <a href="/donate.html">Donate</a>
+    <a class="ext" href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener">Source</a>
+    <span class="faint">&middot;</span>
+    <span>Made by <a class="ext" href="https://tech1k.com" target="_blank" rel="noopener">Tech1k</a></span>
+    <span class="faint">&middot; non-custodial &middot; testnet only</span>
+  </div>
+</footer>
+<script type="module" src="/assets/stats-page.js"></script>
+</body>
+</html>

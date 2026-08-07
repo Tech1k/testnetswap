@@ -1,0 +1,59 @@
+# systemd unit for the TestnetSwap maker daemon: the always-on, faucet-funded
+# counterparty. Its uptime IS the service's uptime (monitor it). It holds the
+# maker's hot keys; keep the seed and relay token in the EnvironmentFile, not in
+# the world-readable config. See ../README.md and ../../DEPLOY.md.
+#
+# Install:
+#   sudo useradd --system --no-create-home --shell /usr/sbin/nologin swap-maker
+#   sudo mkdir -p /opt/testnetswap && sudo cp -r swap-maker swap-core swap-xmr /opt/testnetswap/
+#   # swap-core AND swap-xmr are both file: siblings of swap-maker; `npm ci` fails without both,
+#   # even when xmr.enabled is false.
+#   sudo mkdir -p /etc/swap-maker && sudo cp config.example.json /etc/swap-maker/config.json   # edit apis/rate/limits
+#   # generate a seed once:  node src/main.js seed   -> put it in the env file below
+#   sudo install -m 600 -o swap-maker -g swap-maker /dev/null /etc/swap-maker/env
+#   #   /etc/swap-maker/env:
+#   #     MAKER_SEED=<64-hex>
+#   #     RELAY_MAKER_TOKEN=<must match the relay>
+#   sudo cp deploy/swap-maker.service /etc/systemd/system/
+#   sudo systemctl enable --now swap-maker
+#
+# Adjust ExecStart's node path to match your install (e.g. /usr/bin/node).
+
+[Unit]
+Description=TestnetSwap maker daemon
+After=network-online.target swap-relay.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=swap-maker
+Group=swap-maker
+WorkingDirectory=/opt/testnetswap/swap-maker
+# Seed + relay token live here (chmod 600). config.json holds only non-secrets.
+EnvironmentFile=/etc/swap-maker/env
+ExecStart=/usr/bin/node src/main.js -c /etc/swap-maker/config.json
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Persistent state (swap records, peer rate buckets) -> /var/lib/swap-maker
+StateDirectory=swap-maker
+# Point "state_dir" in config.json at /var/lib/swap-maker
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+ReadWritePaths=/var/lib/swap-maker
+
+[Install]
+WantedBy=multi-user.target

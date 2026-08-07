@@ -1,0 +1,658 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Tech1k */
+/* TestnetSwap stylesheet: the shared, token-driven design system from the
+   testnet suite (CypherFaucet / TestnetPool / TestnetWallet), reused verbatim
+   so the look matches, plus a "TestnetSwap additions" block at the bottom for
+   the swap-specific components. Dark by default; light is an explicit opt-in
+   via data-theme, set by /assets/theme-init.js and toggled from the nav. */
+
+:root {
+    color-scheme: dark;
+
+    /* Shared testnet-suite design tokens, kept in sync with testnetscan.com /
+       TestnetWallet so the whole family looks like one product. */
+    --bg:        #14161b;
+    --card:      #1c1f27;
+    --surface:   #232730;
+    --border:    #2a2e37;
+    --border2:   #353b46;
+    --text:      #e6e8ec;
+    --muted:     #a7adba;
+    --faint:     #8b919b;
+    --num:       #e6e8ec;
+
+    --accent:     #6b86ff;
+    --accent-soft:#9db2ff;
+    --accent-bg:  #1b2236;
+    --accent-dim: #2e3a5c;
+    --accent-2:   #e07a3e;
+    --btn:        #6b86ff;
+    --on-accent:  #ffffff;
+
+    --ok:   #4fbf75; --ok-bg:   rgba(79, 191, 117, 0.13);
+    --bad:  #ef6b6b; --bad-bg:  rgba(239, 107, 107, 0.13);
+    --warn: #e0894f; --warn-bg: rgba(224, 137, 79, 0.14);
+
+    --nav-bg: rgba(20, 22, 27, 0.86);
+
+    --ring: rgba(107, 134, 255, 0.45);
+
+    --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'DejaVu Sans Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+    --r: 12px;
+    --r-sm: 8px;
+    --pill: 999px;
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+    --maxw: 960px;
+}
+
+/* Light theme: explicit opt-in via data-theme (set by /assets/theme-init.js, toggled by
+   the nav button). Markup hardcodes data-theme="dark", so no-JS users get the dark default. */
+:root[data-theme="light"] {
+    color-scheme: light;
+
+    --bg:        #f7f7f7;
+    --card:      #ffffff;
+    --surface:   #f4f5f7;
+    --border:    #e5e5e5;
+    --border2:   #d8dbe0;
+    --text:      #1b1d23;
+    --muted:     #5b6270;
+    --faint:     #767c88;
+    --num:       #1b1d23;
+
+    --accent:     #3a54e6;
+    --accent-soft:#2f49c9;
+    --accent-bg:  #eef1ff;
+    --accent-dim: #d7ddff;
+    --accent-2:   #c05617;
+    --btn:        #3a54e6;
+
+    --ok:   #1f8f4d; --ok-bg:   rgba(31, 143, 77, 0.12);
+    --bad:  #c62f2f; --bad-bg:  rgba(198, 47, 47, 0.10);
+    --warn: #b25f16; --warn-bg: rgba(178, 95, 22, 0.12);
+
+    --nav-bg: rgba(255, 255, 255, 0.85);
+
+    --ring: rgba(58, 84, 230, 0.30);
+}
+
+/* ---- Base -------------------------------------------------------------- */
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+}
+
+a, a:visited { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.site_link { color: var(--accent); }
+.site_link:hover { text-decoration: underline; }
+
+code, pre, .mono { font-family: var(--mono); }
+.mono { word-break: break-word; }
+/* Inline code (commands, endpoints, keys, symbols) in prose gets a subtle markdown-`code` pill.
+   Scoped to prose containers so it never doubles up on addresses/values, which live in their own
+   boxes (.addrbox / .kv / .copyable) rather than inside a <p>/<li>/<td>. Code blocks are pre.code. */
+p .mono, li .mono, td .mono, dd .mono, p code, li code, td code {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.08em 0.36em;
+    font-size: 0.875em;
+}
+
+/* Global keyboard focus ring: every interactive control
+   gets a visible ring by default; the richer wrapper rings below still win where set. */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* ---- Layout ------------------------------------------------------------ */
+#main {
+    width: 90%;
+    max-width: var(--maxw);
+    align-self: center;
+    margin: 24px 0 0;
+    flex: 1 0 auto;
+}
+
+/* Short pages (e.g. the homepage): pin the footer to the bottom of the viewport
+   via flexbox instead of padding it down with empty <br> tags. */
+#main.filled { display: flex; flex-direction: column; }
+
+/* ---- Nav (frosted, sticky, full-bleed; content capped to --maxw) ------- */
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    width: 100%;
+    margin: 0;
+    padding: 12px max(20px, calc((100% - var(--maxw)) / 2));
+    background: var(--nav-bg);
+    -webkit-backdrop-filter: saturate(140%) blur(10px);
+    backdrop-filter: saturate(140%) blur(10px);
+    border-bottom: 1px solid var(--border);
+}
+
+.navbar a { text-decoration: none; font-weight: 600; }
+.navbar img { max-height: 38px; display: block; }
+
+/* Brand wordmark: live "CypherFaucet" text in the nav (replaces the baked banner) */
+.brand { display: inline-flex; align-items: center; text-decoration: none; }
+.brand:hover { text-decoration: none; }
+.brand-name { font-size: 21px; font-weight: 700; color: var(--text); letter-spacing: 0.2px; }
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.nav-links a {
+    color: var(--muted);
+    font-size: 15px;
+    padding: 6px 10px;
+    border-radius: var(--r-sm);
+}
+.nav-links a:hover { color: var(--text); text-decoration: none; }
+
+#curpage {
+    color: var(--accent) !important;
+    background: var(--accent-bg);
+}
+
+/* Theme toggle (sun/moon) */
+.theme-toggle { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 34px; height: 34px; border-radius: 999px; cursor: pointer; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.theme-toggle .ico { width: 17px; height: 17px; display: block; }
+:root[data-theme="dark"] .theme-toggle .ico-moon { display: none; }
+:root[data-theme="light"] .theme-toggle .ico-sun { display: none; }
+
+/* CSS-only hamburger (mobile) */
+.menu-toggle { display: none; }
+.hamburger { display: none; flex-direction: column; cursor: pointer; gap: 5px; }
+.hamburger div { width: 25px; height: 3px; background: var(--text); border-radius: 2px; }
+
+@media (max-width: 620px) {
+    .hamburger { display: flex; }
+    /* Keyboard- and screen-reader-operable menu toggle: the checkbox is visually
+       hidden but focusable, so Tab + Space opens the menu; the ring shows on the hamburger. */
+    .menu-toggle { display: block; position: absolute; width: 1px; height: 1px; opacity: 0; margin: 0; }
+    .menu-toggle:focus-visible + .hamburger { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+    /* Right-align the controls: brand pushed left, then the theme toggle, then the hamburger at the
+       far right (order pins it after the toggle even though it comes first in the DOM); the open menu
+       (order 3, full width) drops onto its own line below instead of splitting the control row. */
+    .navbar .brand { margin-right: auto; }
+    .navbar .hamburger { order: 2; }
+    .nav-links {
+        display: none;
+        order: 3;
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        margin-top: 6px;
+    }
+    .nav-links a { width: 100%; padding: 11px 12px; }
+    /* '~' not '+': the theme toggle sits between .hamburger and .nav-links in the DOM, so the menu
+       must open by a general-sibling match, not an adjacent one (that was the "menu won't open" bug). */
+    .menu-toggle:checked ~ .nav-links { display: flex; }
+}
+
+/* Desktop: group the nav links + theme toggle at the right edge. The toggle is a direct
+   child of .navbar (before .nav-links so it stays in the bar on mobile), so on desktop it
+   would otherwise float just after the brand. margin-left:auto pushes the links right and
+   order lands the toggle just after them. Scoped to desktop so the mobile bar/menu are
+   untouched (nav-links collapses on mobile, taking its auto margin out of play). */
+@media (min-width: 621px) {
+    .navbar .nav-links { margin-left: auto; }
+    .navbar .theme-toggle { order: 1; }
+}
+
+/* Skip-to-content link: off-screen until focused. */
+.skip-link { position: absolute; left: 8px; top: -48px; z-index: 200; background: var(--accent); color: var(--on-accent); padding: 8px 14px; border-radius: var(--r-sm); transition: top .15s ease; }
+.skip-link:focus { top: 8px; }
+
+/* Comfortable touch targets for the small copy buttons on phones. */
+@media (pointer: coarse) {
+    .copy, .copy.mini { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
+    .theme-toggle { width: 44px; height: 44px; }
+    .flipbtn { width: 44px; height: 44px; }
+}
+
+/* ---- Cards ------------------------------------------------------------- */
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    overflow: hidden;
+    margin: 16px 0;
+    width: 100%;
+}
+
+.card-header {
+    background: var(--surface);
+    margin: 0; /* neutralize default h1/h2 margins now that card-headers are headings */
+    padding: 13px 18px;
+    font-weight: 700;
+    font-size: 1em;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* title left, any sub/badge to the far right */
+    gap: 6px 12px;
+    flex-wrap: wrap;
+}
+
+/* Muted small suffix inside a card-header (e.g. "BTC · mainnet"); pairs with the .muted class. */
+.card-header .sub { font-weight: 400; font-size: 13px; }
+
+.card-body { padding: 16px 18px; }
+
+/* Status cards: soft tinted header + matching border, via the role tokens.
+   .success / .alert land on the card-header; the *border classes on the card. */
+.success { background: var(--ok-bg) !important; color: var(--ok); border-bottom-color: var(--ok); }
+.successborder { border-color: var(--ok); }
+.alert { background: var(--bad-bg) !important; color: var(--bad); border-bottom-color: var(--bad); }
+.alertborder { border-color: var(--bad); }
+
+/* ---- Forms ------------------------------------------------------------- */
+.forminput-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    font-size: 0.875rem;
+}
+
+.forminput {
+    width: 100%;
+    padding: 0.7em 0.75em 0.7em 2.4em;
+    border: 1px solid var(--border2);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.forminput::placeholder { color: var(--muted); }
+.forminput:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--ring);
+}
+
+.icon-left {
+    position: absolute;
+    left: 0.6em;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 1.5em;
+    width: 1.5em;
+    pointer-events: none;
+}
+.icon-left img { height: 100%; width: auto; display: block; }
+
+.formbtn {
+    width: 100%;
+    padding: 0.7em 1em;
+    background: var(--btn);
+    border: 1px solid var(--btn);
+    color: var(--on-accent);
+    font-family: inherit;
+    font-size: 1.02rem;
+    font-weight: 600;
+    border-radius: var(--pill);
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+.formbtn:hover { filter: brightness(1.08); }
+.formbtn:disabled { opacity: 0.5; cursor: default; }
+.formbtn[aria-disabled="true"] { cursor: not-allowed; }
+.formbtn[aria-disabled="true"]:hover, .formbtn:disabled:hover { filter: none; }
+
+/* ---- Status badge + dots (node sync line) ------------------------------ */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px;
+    border-radius: var(--pill);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+a.badge { text-decoration: none; color: inherit; transition: border-color .15s; }
+a.badge:hover { border-color: var(--accent); }
+
+.dot { font-size: 0.85em; line-height: 1; }
+.dot-ok { color: var(--ok); }
+.dot-warn { color: var(--warn); }
+.dot-off { color: var(--muted); }
+
+/* Operator-vouched maker badge: a trust hint set only by the relay operator (config), never self-reported. */
+.vouched {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    padding: 1px 8px;
+    border-radius: var(--pill);
+    background: var(--accent-bg);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 0.7em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+    white-space: nowrap;
+    cursor: help;
+}
+
+/* /network maker cards: coin-icon pair list */
+.mkr-dot { margin-right: 6px; }
+.pairs-label { font-size: 12.5px; margin-top: 10px; }
+.pairs { display: flex; flex-direction: column; gap: 9px; margin-top: 5px; }
+.pair { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 14px; }
+.pair-legs { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+.coin-chip { display: inline-flex; align-items: center; gap: 5px; }
+.pair-ico { width: 16px; height: 16px; border-radius: 50%; vertical-align: middle; }
+.pair-arrow { color: var(--muted); font-weight: 400; }
+.pair-meta { font-size: 12.5px; }
+
+/* ===================================================================== */
+/* TestnetSwap additions: swap-specific components, built on the tokens  */
+/* above so they inherit the suite's dark/light theming automatically.    */
+/* ===================================================================== */
+
+/* Two-tone wordmark, matching TestnetWallet ("Testnet" + accent second word) */
+.brand-name b { color: var(--accent); font-weight: 700; }
+
+/* External-link marker */
+.ext::after { content: "\2197"; font-size: .72em; opacity: .55; margin-left: 2px; vertical-align: 1px; }
+
+/* Generic helpers */
+.muted { color: var(--muted); }
+.center { text-align: center; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.between { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+h1, h2, h3 { line-height: 1.25; }
+.lede { font-size: 1.08rem; color: var(--muted); margin: 6px 0 0; }
+
+/* Hero */
+.hero { background: var(--accent-bg); border-color: var(--border2); }
+.hero .card-body { padding: 22px 18px; }
+.hero h1 { margin: 0 0 6px; font-size: 1.7rem; }
+/* Donate hero: a "gift · Support the project" eyebrow chip, then the lede below it. */
+.hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: var(--pill); background: var(--card); border: 1px solid var(--border2); font-size: .95rem; font-weight: 600; color: var(--text); }
+.hero-eyebrow svg { width: 16px; height: 16px; color: var(--accent); flex: none; }
+.hero-eyebrow + .lede, .hero-eyebrow + p { margin-top: 14px; }
+/* Donate coin cards: a thin brand-colored top edge (identity accent, --brand set inline per coin). */
+.brand-top { border-top: 3px solid var(--brand, var(--accent)); }
+/* "private" pill for the Litecoin MWEB card (accent-tinted, theme-aware via the tokens). */
+.badge.private { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-soft); }
+
+/* Live maker status pill */
+.statusline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+
+/* Stat tiles (liquidity / rate / uptime) */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px 14px; }
+.stat .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.stat .v { font-size: 1.15rem; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+.stat .v small { font-size: .6em; font-weight: 600; color: var(--muted); }
+/* Homepage "Live" rate list: one row per supported direction, with coins on the left; the rate and the
+   send-side min/max right-aligned, so the row width is used and it reads as a table, not a wall of
+   chips. Distinct classes from the /network maker-card .pairs list (which has its own layout). */
+.rate-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.rate-list:empty { display: none; }
+.rate-row { display: flex; align-items: center; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 9px 14px; }
+.rate-coins { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.rate-coins img { width: 18px; height: 18px; border-radius: 50%; flex: none; }
+.rate-coins .ar { color: var(--muted); font-weight: 400; }
+.rate-meta { display: inline-flex; align-items: baseline; gap: 4px 18px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+.rate-num { font-weight: 700; white-space: nowrap; }
+.rate-num .u { color: var(--muted); font-weight: 400; font-size: .82em; margin-left: 3px; }
+.rate-lim { color: var(--muted); font-size: .85rem; white-space: nowrap; }
+/* Restore-a-swap-from-backup row on the swap page (recovery from another device / after a wipe). */
+.restore-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; justify-content: space-between; }
+.restore-row .muted { flex: 1; min-width: 220px; font-size: 13px; }
+
+/* Swap widget */
+.swapbox { display: flex; flex-direction: column; gap: 12px; }
+.legrow { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+.leg label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.amount-in { display: flex; align-items: stretch; border: 1px solid var(--border2); border-radius: var(--r-sm); background: var(--surface); overflow: hidden; }
+.amount-in input { flex: 1; border: 0; background: transparent; color: var(--text); padding: .7em .75em; font: inherit; font-size: 1.05rem; min-width: 0; }
+/* Visible keyboard focus on the primary amount field + coin picker: the
+   ring lives on the wrapper so focus is obvious even though the inner input drops its own outline. */
+.amount-in:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+.amount-in input:focus { outline: none; }
+/* Receive amount: an <output>, styled to read like the send input beside its coin picker. */
+.amount-in .recv-out { flex: 1; padding: .7em .75em; font: inherit; font-size: 1.05rem; color: var(--text); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.amount-in .coin { display: flex; align-items: center; padding: 0 .8em; background: var(--card); border-left: 1px solid var(--border); font-weight: 700; }
+/* coin picker (the "You send" selector, incl. tXMR) */
+.amount-in .coin-sel { display: block; align-self: stretch; padding: 0 .6em; background: var(--card); color: var(--text); border: 0; border-left: 1px solid var(--border); font: inherit; font-weight: 700; font-size: 1rem; cursor: pointer; }
+.amount-in .coin-sel:focus { outline: none; color: var(--accent); }
+/* Coin picker wrapped with an icon: <span.coinpick><img.coin-ico><select.coin-sel>. The
+   span owns the border/background so the inner select doesn't double them up. */
+.amount-in .coinpick { display: flex; align-items: center; align-self: stretch; gap: 7px; padding: 0 .5em 0 .7em; background: var(--card); border-left: 1px solid var(--border); }
+.amount-in .coinpick .coin-ico { width: 20px; height: 20px; border-radius: 50%; flex: none; }
+.amount-in .coinpick .coin-sel { border-left: 0; background: transparent; padding: 0; align-self: center; }
+/* Maker selector (not inside .amount-in): theme it to match the coin picker + a visible focus ring. */
+.maker-row .coin-sel { background: var(--surface); color: var(--text); border: 1px solid var(--border2); border-radius: var(--r-sm); padding: .5em .6em; font: inherit; }
+.maker-row .coin-sel:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+
+/* Direction flip button */
+.flip { align-self: center; }
+.flipbtn { width: 38px; height: 38px; border-radius: var(--pill); border: 1px solid var(--border2); background: var(--surface); color: var(--text); cursor: pointer; font-size: 16px; transition: transform .2s ease, background-color .15s ease; }
+.flipbtn:hover { background: var(--accent-bg); border-color: var(--accent); transform: rotate(180deg); }
+
+.kv { display: flex; justify-content: space-between; gap: 10px; font-size: .92rem; padding: 3px 0; }
+.kv .muted { color: var(--muted); }
+
+/* Buttons (reuse .formbtn from canonical; add a ghost variant) */
+a.formbtn { display: inline-block; text-align: center; text-decoration: none; }
+a.formbtn:hover { text-decoration: none; }
+/* Keep the label readable once /swap.html is in history: the global a:visited colour
+   (0,1,1) would otherwise beat .formbtn (0,1,0) and paint the text accent-on-accent. */
+.formbtn:link, .formbtn:visited { color: var(--on-accent); }
+.formbtn.ghost:link, .formbtn.ghost:visited { color: var(--text); }
+
+/* Steps (how it works) */
+.steps { display: grid; gap: 12px; counter-reset: step; }
+.step { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
+.step .n { counter-increment: step; width: 30px; height: 30px; border-radius: var(--pill); background: var(--accent-bg); color: var(--accent); border: 1px solid var(--border2); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.step .n::before { content: counter(step); }
+.step h3 { margin: 2px 0 2px; font-size: 1rem; }
+.step p { margin: 0; color: var(--muted); font-size: .94rem; }
+
+/* Definition-style feature list */
+.feature { margin: 0 0 12px; }
+.feature h3 { margin: 0 0 2px; font-size: 1rem; }
+.feature p { margin: 0; color: var(--muted); }
+
+/* Code block for API docs */
+pre.code { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px 14px; overflow-x: auto; font-size: 13px; }
+
+/* ---- TestnetSwap in-browser swap page additions ---- */
+.card-sub { font-weight: 700; margin: 0 0 .4em; }
+.msg { padding: .7em .8em; border-radius: var(--r-sm); border: 1px solid var(--border2); background: var(--surface); font-size: 14px; }
+.msg.ok   { border-color: var(--ok);   background: var(--ok-bg); }
+.msg.warn { border-color: var(--warn); background: var(--warn-bg); }
+.msg.bad  { border-color: var(--bad);  background: var(--bad-bg); }
+.swap-badge { margin-left: 8px; font-size: 12px; font-weight: 600; }
+.pbar > span { transition: width .3s ease; }
+.flow-steps { display: flex; flex-direction: column; margin-top: 8px; }
+.flow-step { display: flex; gap: 10px; padding: 7px 0; align-items: flex-start; }
+.flow-step-ico { flex: 0 0 20px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.flow-step-ico.done { color: var(--ok); }
+.flow-step-ico.active { color: var(--accent); animation: steppulse 1.2s ease-in-out infinite; }
+.flow-step-main { flex: 1; min-width: 0; }
+.flow-step-label { font-size: 14px; color: var(--text); }
+.flow-step.pending .flow-step-label { color: var(--muted); }
+.flow-step.active .flow-step-label { font-weight: 600; }
+.flow-step-detail { font-size: 12.5px; color: var(--muted); margin-top: 3px; word-break: break-all; }
+@keyframes steppulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .flow-step-ico.active { animation: none; } }
+
+/* refined swap: quote detail, advanced expander, trust strip, receipt */
+.quote-detail { border: 1px solid var(--border2); border-radius: var(--r-sm); background: var(--surface); padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; }
+.quote-detail .kv { font-size: .9rem; }
+.pos { color: var(--ok); font-weight: 600; }
+.adv { border: 1px solid var(--border2); border-radius: var(--r-sm); background: var(--surface); }
+.adv > summary { cursor: pointer; padding: 9px 12px; font-size: .9rem; font-weight: 600; color: var(--muted); list-style: none; display: flex; align-items: center; gap: 7px; user-select: none; }
+.adv > summary::-webkit-details-marker { display: none; }
+.adv > summary::before { content: "▸"; font-size: 11px; color: var(--faint); transition: transform .15s ease; }
+.adv[open] > summary::before { transform: rotate(90deg); }
+.adv[open] > summary { border-bottom: 1px solid var(--border2); }
+.adv-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; }
+.adv-body .kv { font-size: .86rem; align-items: baseline; }
+.adv-body .mono, .adv-body a.mono { font-family: var(--mono); font-size: 12px; word-break: break-all; text-align: right; }
+.trust { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: center; margin-top: 10px; }
+.trust-item { font-size: 12px; color: var(--muted); }
+.cta { font-size: 1.05rem; padding: .85em 1em; font-weight: 700; }
+.flow-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.receipt { border: 1px solid var(--ok); background: var(--ok-bg); border-radius: var(--r-sm); padding: 14px 16px; }
+.receipt-head { display: flex; gap: 12px; align-items: center; }
+.receipt-ico { width: 32px; height: 32px; border-radius: 50%; background: var(--ok); color: var(--on-accent); display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700; flex: 0 0 auto; }
+.receipt .quote-detail { background: var(--card); }
+
+/* deposit QR + payment link: base .qr swatch (white so codes scan in both themes) */
+.qr { display: inline-block; background: #fff; line-height: 0; padding: 8px; border-radius: var(--r-sm); }
+.qr svg { display: block; width: 168px; height: 168px; max-width: 100%; }
+.qr svg path { fill: #14161b; }
+.deposit-grid { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin: 4px 0; }
+.deposit-grid .deposit-side { flex: 1; min-width: min(220px, 100%); }
+/* copyable technical value (mono + tiny copy button) */
+.copyable { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
+.copyable .mono { word-break: break-all; }
+.copy.mini { padding: 0 .4em; font-size: 12px; line-height: 1.7; border-radius: 5px; flex: 0 0 auto; }
+/* advanced sub-sections + flow diagram + raw JSON */
+.adv-sub { padding: 10px 0; border-top: 1px solid var(--border); }
+.adv-sub:first-child { border-top: 0; padding-top: 2px; }
+.adv-sub-h { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); margin-bottom: 6px; }
+.flowdiag { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 9px; }
+.flowdiag li { font-size: 13.5px; line-height: 1.4; }
+.flowdiag li::marker { color: var(--accent); font-weight: 700; }
+.adv-raw { margin-top: 10px; }
+.adv-raw > summary { font-size: 12px; }
+.raw { margin: 8px 0 0; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); font-family: var(--mono); font-size: 11.5px; line-height: 1.5; overflow-x: auto; white-space: pre; color: var(--num); }
+
+/* footer (suite links): matches testnetscan / testnetwallet */
+.foot-inner { max-width: var(--maxw); margin: 0 auto; padding: 22px 20px; display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; justify-content: center; border-top: 1px solid var(--border); font-size: 14px; }
+.foot-inner a { color: var(--muted); }
+.foot-inner a:hover { color: var(--accent); }
+.foot-inner .faint { color: var(--faint); }
+/* coin icons */
+.coin-name { display: inline-flex; align-items: center; gap: 8px; }
+.coin-ico { width: 20px; height: 20px; border-radius: 50%; display: block; flex: none; }
+.coin.has-ico { display: inline-flex; align-items: center; gap: 6px; }
+/* donate: QR (with a centre coin logo) + address column */
+.donate-body { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.donate-body .qrslot { flex: none; }
+.donate-body .donate-side { flex: 1; min-width: min(240px, 100%); }
+/* Compact "Open in wallet" (not the full-width form CTA) so the coin cards read like the sibling sites. */
+.donate-side .row .formbtn { width: auto; padding: .5em 1.1em; font-size: .95rem; }
+/* donation QR variant: framed + larger, positioned for the centre coin-logo overlay */
+.donate-body .qr { position: relative; border: 1px solid var(--border); padding: 6px; }
+.donate-body .qr svg { width: 180px; height: 180px; }
+.qr-logo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 26%; height: 26%; background: #fff; border-radius: 6px; box-shadow: 0 0 0 3px #fff; display: flex; align-items: center; justify-content: center; }
+.qr-logo img { width: 100%; height: 100%; display: block; }
+.formbtn.ghost { background: transparent; border: 1px solid var(--border2); color: var(--text); }
+.formbtn.ghost:hover { border-color: var(--accent); background: var(--accent-bg); filter: none; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+#flow:empty { display: none; }
+#flow { margin-top: 14px; }
+.deposit .addrbox, .addrbox { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--r-sm); padding: .6em .7em; }
+.addrbox .mono { font-family: var(--mono); font-size: 13px; word-break: break-all; flex: 1; min-width: 0; }
+.copy { cursor: pointer; background: var(--card); border: 1px solid var(--border); color: var(--accent); border-radius: var(--r-sm); padding: .25em .6em; font-size: 12px; font-weight: 600; }
+.copy:hover { border-color: var(--accent); }
+.mono-link { display: block; font-family: var(--mono); font-size: 12px; word-break: break-all; margin-top: 6px; }
+.swap-line { font-size: 14px; color: var(--text); padding: 3px 0; }
+.swap-line.wait { color: var(--muted); }
+.pbar { height: 6px; border-radius: 999px; background: var(--surface); overflow: hidden; margin: 10px 0; }
+.pbar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.pbar.indet > span { width: 40%; animation: pslide 1.15s ease-in-out infinite; }
+@keyframes pslide { 0% { transform: translateX(-110%); } 100% { transform: translateX(275%); } }
+@media (prefers-reduced-motion: reduce) { .pbar.indet > span { animation: none; width: 100%; } }
+
+/* liquidity bars (stats page) */
+.liq-row { margin: 0 0 16px; }
+.liq-row:last-child { margin-bottom: 0; }
+.liq-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 7px; font-size: 14px; }
+.liq-head .coin-name { font-weight: 600; }
+.liq-head .num { font-family: var(--mono); color: var(--num); font-size: 13px; }
+.liqbar { display: flex; height: 12px; border-radius: 999px; background: var(--surface); overflow: hidden; border: 1px solid var(--border); }
+.liqbar .seg { height: 100%; min-width: 0; }
+.liqbar .seg.free { background: var(--ok); }
+.liqbar .seg.committed { background: var(--warn); }
+.liq-legend { display: flex; gap: 16px; margin-top: 7px; font-size: 12px; color: var(--muted); }
+.liq-legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+.liq-legend .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.liq-legend .sw.free { background: var(--ok); }
+.liq-legend .sw.committed { background: var(--warn); }
+
+/* inline SVG bar chart (no deps, CSP-safe) */
+.chart { overflow-x: auto; }
+.chart svg { width: 100%; min-width: 520px; height: auto; display: block; }
+.chart rect.bar { fill: var(--accent); pointer-events: none; }          /* pointer-events off so the hover column beneath catches events over the bars too */
+.chart rect.bar-ref { fill: var(--accent-2); pointer-events: none; }    /* safely refunded (the recovery path working) */
+.chart rect.col { fill: transparent; cursor: default; }                 /* full-height hover target for the day tooltip */
+.chart rect.col:hover { fill: rgba(127, 140, 180, .10); }
+.chart line.axis { stroke: var(--border); stroke-width: 1; }
+.chart line.grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; opacity: .55; }
+.chart text.lbl { fill: var(--muted); font-size: 12px; font-family: var(--mono); }
+.chart-legend { display: flex; gap: 16px; margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+.chart-legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+.chart-legend .sw { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.chart-legend .sw.c { background: var(--accent); }
+.chart-legend .sw.r { background: var(--accent-2); }
+.chart-wrap { position: relative; }                          /* non-scrolling anchor for the tooltip */
+.chart-tip {
+  position: absolute; z-index: 6; pointer-events: none; white-space: nowrap;
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 7px;
+  padding: 7px 10px; font-size: 12.5px; line-height: 1.55; color: var(--text);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+}
+.chart-tip .tt-d { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-bottom: 3px; }
+.chart-tip .tt-z { color: var(--muted); }
+.chart-tip .tt-c b { color: var(--accent); }
+.chart-tip .tt-r b { color: var(--accent-2); }
+#t-chart { min-height: 170px; }
+
+/* by-pair proportional bars */
+.pair-row { margin-bottom: 12px; }
+.pair-row:last-child { margin-bottom: 0; }
+.pair-top { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 5px; }
+.pair-top .n { color: var(--muted); font-family: var(--mono); font-size: 13px; }
+.pair-bar { height: 8px; border-radius: 999px; background: var(--surface); overflow: hidden; }
+.pair-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+
+/* ---- My swaps: fold older/terminal swaps under a toggle ----------------- */
+.swaps-older-toggle { width: auto; display: block; margin: 4px auto 8px; padding: 0.5em 1.1em; font-size: 0.95rem; }
+.swaps-older > .card:first-child { margin-top: 0; }

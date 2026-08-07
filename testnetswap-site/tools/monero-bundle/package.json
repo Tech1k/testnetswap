@@ -1,0 +1,21 @@
+{
+  "name": "monero-bundle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reproducible builder for the vendored Monero engine (repackages the pinned monero-ts npm artifact into the site's UMD moneroTs global + worker).",
+  "license": "AGPL-3.0-or-later",
+  "type": "commonjs",
+  "scripts": {
+    "build": "webpack --config webpack.config.js && cp node_modules/monero-ts/dist/monero.worker.js out/monero.worker.js && node -e \"const p=require('monero-ts/package.json');console.log('built from monero-ts@'+p.version)\"",
+    "verify": "node verify.mjs",
+    "vendor": "npm run build && npm run verify && cp out/monero-engine.bundle.js out/monero.worker.js ../../vendor/ && echo 're-vendored -> testnetswap-site/vendor/ (now regen VENDOR.lock, and do a real browser tXMR->tBTC swap before shipping - see README)'"
+  },
+  "dependencies": {
+    "monero-ts": "0.11.10"
+  },
+  "devDependencies": {
+    "node-polyfill-webpack-plugin": "4.1.0",
+    "webpack": "5.97.1",
+    "webpack-cli": "5.1.4"
+  }
+}

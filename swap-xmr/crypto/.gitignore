@@ -1,0 +1,4 @@
+/target
+/pkg
+
+# pkg-node + pkg-web are committed on purpose (compiled WASM, for a build-free deploy); regenerate with wasm-pack, see README

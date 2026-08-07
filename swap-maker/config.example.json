@@ -1,0 +1,76 @@
+{
+  "relay_url": "ws://127.0.0.1:8910/",
+  "relay_token": "CHANGE_ME (or set RELAY_MAKER_TOKEN env); must match the relay",
+  "seed": "CHANGE_ME 64-hex (or set MAKER_SEED env); run `node src/main.js seed` to generate",
+
+  "_comment_apis": "Ordered Esplora HTTP endpoints per coin (mempool.space / esplora shape), primary first, fallbacks after; a READ retries a few times per endpoint, then fails over to the next. RECOMMENDED for production: put YOUR OWN node's endpoint FIRST and a public one as fallback; it dodges the public explorer's rate limits, is faster, and rides out a public outage. Your endpoint must be an Esplora HTTP API (Blockstream/mempool `electrs`), NOT raw ElectrumX/Fulcrum (those speak the Electrum protocol, not HTTP). If the maker runs on the SAME box as your explorer, use loopback, e.g. tLTC: [\"http://127.0.0.1:3002\", \"https://testnetscan.com/ltc-testnet/api\"]. TRUST NOTE: this is only the MAKER's view, and a maker verifying against its own explorer is fine. The browser TAKER independently verifies tBTC against mempool.space (a source the operator does NOT control); that split is what keeps swaps non-custodial and is set in the SITE, not here. tLTC has no reliable independent testnet Esplora (litecoinspace is stalled); the accepted testnet tradeoff.",
+  "apis": {
+    "tBTC": ["https://mempool.space/testnet4/api", "https://testnetscan.com/btc-testnet4/api"],
+    "tLTC": ["https://testnetscan.com/ltc-testnet/api"]
+  },
+
+  "rate": { "tbtc_per_tltc": 0.005, "feePct": 0 },
+
+  "limits": {
+    "_comment_sizing": "Rate 0.005 (1 tBTC : 200 tLTC : 200 XMR) is a nominal testnet rate. Mins are FAUCET-PARITY: CypherFaucet pays exactly 0.01 of each coin, so each min is 0.009 (900000 sats tLTC/tBTC, 9e9 pico XMR); one claim funds a minimum swap with a network-fee buffer, and 0.009 clears both dust floors (the HTLC redeem floor DUST 546 + ceil(175*fee_rate) ~= 896, and the higher XMR-adaptor unwind floor 546 + 2*1000 = 2546) with room. Bitcoin stays the scarce coin (200x). Maxes are per-pool: peak exposure = max_concurrent_committed x max_send, and the maker auto-rejects any quote it can't fund (the pools.free gate), so over-generous maxes just get rejected, never overspend. Keep max_send well under your pool size.",
+    "per_coin": {
+      "tLTC": { "min_send_sats": 900000, "max_send_sats": 500000000 },
+      "tBTC": { "min_send_sats": 900000, "max_send_sats": 5000000 }
+    },
+    "max_concurrent_committed": 20,
+    "max_concurrent_per_peer": 1,
+    "rate_limit_per_peer": 10,
+    "rate_window_ms": 60000
+  },
+
+  "_comment_min_confirmations": "Confirmations the maker waits on the taker's deposit before it locks its own side. 2 is a middle-ground testnet choice (blocks are irregular and the coins are worthless): safer than 1 against a shallow reorg of the deposit, faster than 3. Raise to 3+ for real value.",
+  "min_confirmations": 2,
+  "fee_rate": 2,
+  "fee_bump_step": 2,
+  "max_fee_rate": 100,
+  "_comment_timelocks": "Wall-clock CLTV windows. Sized for min_confirmations=2 on BOTH legs (the maker waits 2 confs of the taker deposit before locking; the taker waits 2 confs of the maker lock before revealing) PLUS the taker's ~2h pre-reveal safety margin, on an irregular testnet where a confirmation can take an hour or more. The reveal must land by T2 minus 2h, and up to 4 confirmations occur before it, so T2 must be generous: t2_hours=12 gives ~10h of confirmation budget. T1 (taker refund) stays ~2x T2. Too-short a T2 makes legit swaps abort safely to refund (no loss, but a failed-looking swap). Shorten only on a fast/reliable chain, or drop min_confirmations to 1 to halve the budget.",
+  "t1_hours": 24,
+  "t2_hours": 12,
+  "quote_ttl_secs": 120,
+  "_comment_accept_timeout_secs": "How long a reservation is held after the taker accepts, waiting for it to lock on-chain. The taker broadcasts + sends TAKER_LOCKED within seconds (confirmations are waited for AFTER, separately), so this only needs to cover the lock broadcast. Kept modest (300s) because an unfunded 'accepted' swap PINS reserved liquidity for this whole window, and the per-peer cap is weak against a taker that rotates relay sessions; a shorter window makes that liquidity-griefing self-heal in minutes, not half an hour.",
+  "accept_timeout_secs": 300,
+  "taker_locked_timeout_secs": 14400,
+  "_comment_t2_fund_margin_secs": "The maker refuses to lock its side if fewer than this many seconds remain before T2. It MUST exceed the taker's pre-reveal margin (~2h) plus the taker's 2-conf time, or the maker funds a contract the taker is already too late to claim (wasted liquidity, forced double-refund). 14400 (4h) pairs with t2_hours=12.",
+  "t2_fund_margin_secs": 14400,
+  "refund_margin_secs": 600,
+  "reap_terminal_secs": 86400,
+  "watch_interval_ms": 15000,
+  "balance_interval_ms": 60000,
+
+  "status_host": "127.0.0.1",
+  "status_port": 8911,
+  "state_dir": "./state",
+
+  "faucet_url": "https://cypherfaucet.com",
+  "faucet_slugs": { "tBTC": "btc-testnet", "tLTC": "ltc-testnet" },
+
+  "xmr": {
+    "enabled": false,
+    "_comment_network": "Serve one Monero network with network/node/sweep_address (tXMR=testnet, sXMR=stagenet), OR serve both at once with the `networks` map below (delete network/node/sweep_address if you use it).",
+    "network": "testnet",
+    "node": "https://xmr-testnet-node.librenode.com:443",
+    "sweep_address": "CHANGE_ME; a Monero address the maker controls; received XMR is swept here",
+    "_comment_networks_example": {
+      "testnet": { "node": "https://xmr-testnet-node.librenode.com:443", "sweep_address": "CHANGE_ME testnet Monero address" },
+      "stagenet": { "node": "https://xmr-stagenet-node.librenode.com:443", "sweep_address": "CHANGE_ME stagenet Monero address" }
+    },
+    "funding_key_label": "tBTC:xmr-funding",
+    "_comment_rate_pricing": "Price Monero like the abundant coin (it is minable), not like Bitcoin: rate_tbtc_per_xmr matches tbtc_per_tltc, so 1 XMR = 1 tLTC in value (1 tBTC : 200 tLTC : 200 XMR). Pricing XMR as generously as BTC (e.g. 0.01) lets anyone mine XMR and drain your scarce tBTC.",
+    "rate_tbtc_per_xmr": 0.005,
+    "_comment_rate_tltc_per_xmr": "OPTIONAL: set this (nominal tLTC per 1 XMR) to ALSO offer tXMR/sXMR -> tLTC. For LTC-parity use 1.0 (1 XMR = 1 tLTC). Requires apis.tLTC (a tLTC pool). The maker locks tLTC from a dedicated 'tLTC:xmr-funding' address it logs at startup; fund that separately. tBTC settlement is always on; tLTC is added only when this rate is present.",
+    "rate_tltc_per_xmr": null,
+    "_comment_amounts": "min_pico is FAUCET-PARITY: 0.009 XMR (9e9 pico) matches one 0.01 claim minus fees. The settle-coin lock (min_pico/1e12 * rate * 1e8 sats) must clear the adaptor unwind floor of 546 + 2*1000 = 2546 sats, or the maker refuses the quote. At rate_tbtc_per_xmr 0.005, min_pico 9e9 -> 4500 sats tBTC, clearing it with room. Lower the rate and you must raise min_pico. tLTC settlement has no floor issue (its output is large).",
+    "min_pico": 9000000000,
+    "max_pico": 300000000000,
+    "max_concurrent": 4,
+    "_comment_blocks": "t1_blocks/t2_blocks are the settle-coin CSV windows in BLOCKS, expressed in tBTC block-time (~10 min). A faster settle chain needs proportionally MORE blocks for the same wall-clock window, so the maker FLOORS each settle coin at its per-chain safe default (tBTC 72 ~= 12h, tLTC 288 ~= 12h): enabling tLTC settlement automatically uses >= 288 even if these say 72. Raising these widens the window; you cannot set a settle coin below its per-chain floor.",
+    "t1_blocks": 72,
+    "t2_blocks": 72,
+    "fee_rate": 2
+  }
+}
