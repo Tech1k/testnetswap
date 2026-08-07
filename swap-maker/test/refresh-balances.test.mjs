@@ -78,9 +78,8 @@ test('refreshBalances: a SUSTAINED empty read is believed after the blip window 
   await maker.refreshBalances();
   assert.equal(pools.total.tLTC, 500000);
   chain.next = [];
-  await maker.refreshBalances(); assert.equal(pools.total.tLTC, 500000, 'blip 1 kept');
-  await maker.refreshBalances(); assert.equal(pools.total.tLTC, 500000, 'blip 2 kept');
-  await maker.refreshBalances(); assert.equal(pools.total.tLTC, 0, 'sustained empty (3rd) is believed -> pool drained, quotes now refused');
+  await maker.refreshBalances(); assert.equal(pools.total.tLTC, 500000, 'blip 1 kept (ride out a single flaky read)');
+  await maker.refreshBalances(); assert.equal(pools.total.tLTC, 0, 'a 2nd consecutive empty read is believed -> pool drained, quotes now refused (tightened window)');
   chain.next = [confirmed(400000)];
   await maker.refreshBalances(); assert.equal(pools.total.tLTC, 400000, 'a positive read restores and re-arms the blip counter');
 });

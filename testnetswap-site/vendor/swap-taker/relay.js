@@ -43,9 +43,16 @@ export function connectRelay(url, { timeoutMs = 12000 } = {}) {
     ws.onmessage = (ev) => {
       let m; try { m = JSON.parse(ev.data); } catch { return; }
       if (!m || typeof m.type !== 'string') return;
-      // Defense-in-depth: drop prototype-pollution keys before any consumer reads the message
-      // (the relay + maker are untrusted); no reachable sink today, but keep the object clean.
-      for (const k of ['__proto__', 'constructor', 'prototype']) if (Object.prototype.hasOwnProperty.call(m, k)) return;
+      // Defense-in-depth: drop prototype-pollution keys at ANY depth (nested objects such as the XMR
+      // `bundle` were previously unscanned) before any consumer reads the message. The relay + maker are
+      // untrusted; no legitimate message carries these keys, so rejecting the whole frame is safe. Depth-bounded.
+      const hasDangerKey = (v, d) => {
+        if (!v || typeof v !== 'object' || d > 6) return false;
+        for (const k of Object.keys(v)) if (k === '__proto__' || k === 'constructor' || k === 'prototype') return true;
+        for (const k of Object.keys(v)) if (hasDangerKey(v[k], d + 1)) return true;
+        return false;
+      };
+      if (hasDangerKey(m, 0)) return;
       if (m.type === '_pong') return;
       if (m.type === '_relay_hello') { hello = m; if (!settled) { settled = true; clearTimeout(openTimer); resolve(transport); } return; }
       if (ERROR_TYPES.has(m.type)) { const err = new Error('maker: ' + (m.reason || m.type)); err.relayError = m; fatalErr = err; rejectWaiters(err); return; } // L-2: sticky; fast-fails current + future recv

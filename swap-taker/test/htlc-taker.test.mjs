@@ -11,7 +11,7 @@ import { Wallet } from '../../swap-maker/src/wallet.js';
 import { Pools } from '../../swap-maker/src/pools.js';
 import { Rates } from '../../swap-maker/src/rates.js';
 import { Limits } from '../../swap-maker/src/limits.js';
-import { runHtlcTaker, refundHtlc, genHtlcKeys, htlcFundingAddress } from '../src/taker.js';
+import { runHtlcTaker, refundHtlc, redeemHtlc, genHtlcKeys, htlcFundingAddress } from '../src/taker.js';
 
 const enc = (u) => Buffer.from(u).toString('hex');
 const fromHex = (h) => Uint8Array.from(Buffer.from(h, 'hex'));
@@ -81,7 +81,8 @@ test('full HTLC swap: shared taker + real maker (tLTC -> tBTC), redeem + maker c
   chains[FROM].seed(htlcFundingAddress(sc, km, FROM), 5_000_000);
 
   const recvAddr = sc.btc.p2wpkh(km.recvPub, sc.getCoin(TO).network).address;
-  const res = await runHtlcTaker({ sc, transport: taker, chains, km, params: { from: FROM, to: TO, sendSats: 1_000_000, minConf: 0, feeRate: 2, recvAddr, onStatus: () => {}, setupTimeoutMs: 20000, lockTimeoutMs: 20000 } });
+  let redeemBlob = null;
+  const res = await runHtlcTaker({ sc, transport: taker, chains, km, params: { from: FROM, to: TO, sendSats: 1_000_000, minConf: 0, feeRate: 2, recvAddr, onBeforeReveal: (rr) => { redeemBlob = rr; }, onStatus: () => {}, setupTimeoutMs: 20000, lockTimeoutMs: 20000 } });
 
   assert.equal(res.state, 'redeemed', 'taker redeemed the maker tBTC contract');
   assert.ok(res.redeemTxid, 'has a redeem txid');
@@ -90,8 +91,21 @@ test('full HTLC swap: shared taker + real maker (tLTC -> tBTC), redeem + maker c
   // let the maker observe the redeem, extract the secret, and claim the taker's tLTC contract
   for (const s of [...maker.swaps.values()]) await maker.watchMakerLocked(s);
   const makerSwap = [...maker.swaps.values()][0];
-  assert.equal(makerSwap.state, 'completed', 'maker extracted the secret and claimed');
+  // P1a: the maker's claim is now NON-terminal until it confirms; a second tick (claimTaker) settles it 'completed'.
+  assert.ok(['claiming', 'completed'].includes(makerSwap.state), 'maker broadcast the claim (non-terminal)');
+  if (makerSwap.state === 'claiming') await maker.claimTaker(makerSwap);
+  assert.equal(makerSwap.state, 'completed', 'maker claim confirmed -> completed');
   assert.ok(makerSwap.secret, 'maker learned the secret');
+
+  // P1c: onBeforeReveal persisted a REDEEM-CAPABLE blob before the reveal, and redeemHtlc can re-drive it.
+  assert.ok(redeemBlob && redeemBlob.revealed === true, 'onBeforeReveal captured a revealed blob');
+  assert.ok(redeemBlob.makerLockTxid && redeemBlob.secretHex && redeemBlob.makerRefundPubkey && redeemBlob.t2 != null,
+    'blob carries the maker outpoint + secret + contract fields needed to rebuild the redeem');
+  const rr = await redeemHtlc({ sc, chains, recovery: redeemBlob, feeRate: 2, onStatus: () => {} });
+  assert.equal(rr.state, 'redeemed', 'redeemHtlc re-drove the redeem from the blob');
+  assert.ok(rr.confirmed, 'redeemHtlc drove it to confirmation');
+  // guard: a plain (non-redeem-capable) refund blob is rejected, not silently mis-driven
+  await assert.rejects(() => redeemHtlc({ sc, chains, recovery: { kind: 'htlc', to: TO } }), /not redeem-capable/);
 });
 
 test('HTLC taker surfaces recovery material when the maker never locks', async () => {

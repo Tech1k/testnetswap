@@ -82,13 +82,24 @@ const PICO = 1e12, SATS = 1e8;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function el(tag, attrs, ...kids) {
   const e = document.createElement(tag);
-  if (attrs) for (const k in attrs) { const v = attrs[k]; if (v == null) continue; if (k === 'class') e.className = v; else if (k === 'html') e.innerHTML = v; else if (k === 'style') e.style.cssText = v; else if (k.slice(0, 2) === 'on' && typeof v === 'function') e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); }
+  if (attrs) for (const k in attrs) { const v = attrs[k]; if (v == null) continue; if (k === 'class') e.className = v; else if (k === 'style') e.style.cssText = v; else if (k.slice(0, 2) === 'on' && typeof v === 'function') e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); }   // no `html:`/innerHTML branch on purpose: nothing can route text through innerHTML here (QR is built as a parsed node via qrNode)
   for (const c of kids) if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(String(c)));
   return e;
 }
 export const fmtXmr = (pico) => (Number(pico) / PICO).toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
 export const fmtBtc = (sats) => (Number(sats) / SATS).toFixed(8).replace(/0+$/, '').replace(/\.$/, '');
-function qrSvg(t) { try { const q = qrcode(0, 'M'); q.addData(t); q.make(); return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch { return ''; } }
+// Build the QR as a PARSED SVG node (never innerHTML): the qrcode lib emits an <svg> of <rect>s; parse it in
+// an inert document and import the root <svg>, so no path in el() touches innerHTML with any string.
+function qrNode(t) {
+  try {
+    const q = qrcode(0, 'M'); q.addData(t); q.make();
+    const svg = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+    const node = doc.documentElement;
+    if (!node || doc.querySelector('parsererror') || String(node.nodeName).toLowerCase() !== 'svg') return null;
+    return document.importNode(node, true);
+  } catch { return null; }
+}
 function addrBox(text) {
   const b = el('button', { class: 'copy mini', type: 'button', onclick: () => { if (b.dataset.copied) return; b.dataset.copied = '1'; try { navigator.clipboard && navigator.clipboard.writeText(text); } catch {} const o = b.textContent; b.textContent = '✓'; setTimeout(() => { b.textContent = o; delete b.dataset.copied; }, 1000); } }, 'copy');
   return el('div', { class: 'addrbox' }, el('span', { class: 'mono' }, text), b);
@@ -253,7 +264,7 @@ function renderDeposit(host, address, amountPico, net, fromCoin, toCoin) {
   host.replaceChildren(
     el('div', { class: 'card-header' }, 'Send exactly ' + fmtXmr(amountPico) + ' ' + (fromCoin || 'tXMR') + (net ? ' (Monero ' + net + ')' : '')),
     el('div', { class: 'card-body' }, el('div', { class: 'deposit-grid' },
-      el('a', { class: 'qr', href: uri, title: 'Open in your Monero wallet', html: qrSvg(uri) }),
+      el('a', { class: 'qr', href: uri, title: 'Open in your Monero wallet' }, qrNode(uri)),
       el('div', { class: 'deposit-side' },
         el('p', { class: 'muted', style: 'margin:.2em 0 .6em;font-size:13px' }, 'The 2-of-2 lock address on Monero ' + (net || 'testnet') + '. Send from a wallet on that network. The maker already locked its ' + (toCoin || 'tBTC') + '; sending here locks your side. Keep this tab open.'),
         addrBox(address),

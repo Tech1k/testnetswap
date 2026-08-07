@@ -276,9 +276,9 @@ export function createXmrHandler({ x, btc, cfg, log = console, makeChains, sweep
       if (e.unwind) {
         try {
           const u = await driver.bobUnwind({ x, btc, chains: wrappedChains, km, unwind: e.unwind, xmrRestoreHeight, xmrSweepDest: sweepDest });
-          if (u.state === 'completed') { log.info(`xmr swap ${sid.slice(0, 8)}: late-redeem recovered; swept ${u.sweepTxids.join(',')}`); recordTerminal(rec, 'completed'); }
-          else { log.info(`xmr swap ${sid.slice(0, 8)}: refunded ${u.refundTxid}`); recordTerminal(rec, 'refunded'); }
-          resolved = true;
+          if (u.state === 'completed') { log.info(`xmr swap ${sid.slice(0, 8)}: late-redeem recovered; swept ${u.sweepTxids.join(',')}`); recordTerminal(rec, 'completed'); resolved = true; }
+          else if (u.state === 'refunded' && u.confirmed !== false) { log.info(`xmr swap ${sid.slice(0, 8)}: refunded ${u.refundTxid}`); recordTerminal(rec, 'refunded'); resolved = true; }
+          else { log.warn(`xmr swap ${sid.slice(0, 8)}: refund broadcast (${u.refundTxid}) not yet confirmed; keeping durable record for resume() to monitor/re-attempt (XMR refund can't RBF)`); rec.refundTxid = u.refundTxid; rec.phase = 'refund_pending'; persistRecord(rec); }
         } catch (e2) {
           // Unwind FAILED: funds may still be locked on-chain. Keep the durable record so the
           // operator/a future resume can retry recovery (deterministic km from the sid).
@@ -338,9 +338,9 @@ export function createXmrHandler({ x, btc, cfg, log = console, makeChains, sweep
       if (!onChain) { log.warn(`xmr resume ${tag}: lock ${String(rec.unwind.lockTxid).slice(0, 12)} never confirmed on-chain; dropping phantom record`); forgetRecord(rec.sid); return; }
       const unwind = driver.bobReconstructUnwind({ x, btc, km, persisted: rec.unwind, sendCoinNetwork: scnFor(settle), moneroNetwork: net, t1Blocks: rec.t1Blocks, t2Blocks: rec.t2Blocks });
       const u = await driver.bobUnwind({ x, btc, chains, km, unwind, xmrRestoreHeight: rec.xmrRestoreHeight || 0, xmrSweepDest: sweepAddrFor(net) });
-      if (u.state === 'completed') { log.info(`xmr resume ${tag}: late-redeem recovered; swept ${u.sweepTxids.join(',')}`); recordTerminal(rec, 'completed'); }
-      else { log.info(`xmr resume ${tag}: refunded ${u.refundTxid}`); recordTerminal(rec, 'refunded'); }
-      forgetRecord(rec.sid);
+      if (u.state === 'completed') { log.info(`xmr resume ${tag}: late-redeem recovered; swept ${u.sweepTxids.join(',')}`); recordTerminal(rec, 'completed'); forgetRecord(rec.sid); }
+      else if (u.state === 'refunded' && u.confirmed !== false) { log.info(`xmr resume ${tag}: refunded ${u.refundTxid}`); recordTerminal(rec, 'refunded'); forgetRecord(rec.sid); }
+      else { log.warn(`xmr resume ${tag}: refund broadcast (${u.refundTxid}) not yet confirmed; record KEPT for the next resume to monitor (XMR refund can't RBF)`); rec.refundTxid = u.refundTxid; rec.phase = 'refund_pending'; persistRecord(rec); }
     } catch (e) {
       log.error(`xmr resume ${tag}: automatic unwind FAILED (${e.message}): funds are seed+sid-recoverable; record kept for retry/operator action`);
     }

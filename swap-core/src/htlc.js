@@ -49,8 +49,8 @@ export function buildContract({ secretHash, recipientPubkey, refundPubkey, lockt
   // Fail-closed against a BIP65-invalid contract: a locktime above the max positive 5-byte
   // CScriptNum needs a 6-byte push, which OP_CHECKLOCKTIMEVERIFY rejects; the refund branch
   // would be permanently unexecutable. Never let a caller build such a contract for itself.
-  const MAX_CLTV_SCRIPTNUM = 0x7fffffffff; // 549755813887
-  if (locktime > MAX_CLTV_SCRIPTNUM) throw new Error(`locktime ${locktime} exceeds the 5-byte CLTV maximum (${MAX_CLTV_SCRIPTNUM}); the contract would be unspendable`);
+  const MAX_CLTV_NLOCKTIME = 0xffffffff; // 4294967295 = max 32-bit nLockTime. A CLTV operand ABOVE this can never be satisfied (no nLockTime reaches it), so the refund branch would be permanently unspendable - a refund-less contract. Tighter than the 5-byte scriptnum max on purpose.
+  if (locktime > MAX_CLTV_NLOCKTIME) throw new Error(`locktime ${locktime} exceeds the max nLockTime (${MAX_CLTV_NLOCKTIME}); the refund branch would be permanently unspendable`);
   if (!network) throw new Error('network required');
 
   const recipientPkh = hash160OfPubkey(recipientPubkey);
@@ -194,7 +194,7 @@ export function verifyFundedOutput({ witnessScript, fundedScriptPubKey, fundedVa
 // ---- internals ----
 
 function hexToBytesLocal(hex) {
-  if (typeof hex !== 'string' || hex.length % 2) return null;
+  if (typeof hex !== 'string' || hex.length % 2 || !/^[0-9a-fA-F]*$/.test(hex)) return null;   // reject non-hex up front: parseInt('1z',16)===1 would otherwise silently misread a malformed nibble as a valid byte
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i++) {
     const b = parseInt(hex.slice(i * 2, i * 2 + 2), 16);

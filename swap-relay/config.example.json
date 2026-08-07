@@ -20,6 +20,8 @@
   "maxTakers": 500,
   "maxMakers": 64,
   "maxPendingMakers": 64,
+  "maxPendingMakersPerIp": 2,
+  "_comment_maxPendingMakersPerIp": "Per-IP sub-cap on UNAUTHENTICATED pending-maker sockets (challenged but not yet ed25519-registered). maxPendingMakers is a GLOBAL pre-auth pool; without this a few IPs (bounded only by maxPerIp) could hold every pending slot and block real makers from registering. Default 2.",
   "maxPerIp": 8,
   "msgsPerMinPerConn": 120,
   "makerMsgsPerMin": 600,

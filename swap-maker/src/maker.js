@@ -174,13 +174,13 @@ export class Maker {
         // flapping to 0). Startup is unaffected: pools.total starts at 0, so the initial 0 read
         // fails this guard (0 > 0 is false) and setTotal(coin, 0) still applies.
         if (total === 0 && (this.pools.total[coin] || 0) > 0) {
-          // L2: ride out a BRIEF flaky-explorer blip by keeping last-known-good, but do NOT keep a
-          // phantom-positive pool indefinitely; a sustained empty read (>=3 consecutive polls, ~3 min
-          // at balance_interval_ms) is far more likely a real drain, and advertising liquidity the pool
-          // no longer holds makes a taker lock then wait until T1 to refund. After the blip window,
-          // believe the 0 so the free-liquidity gate refuses new quotes.
+          // L2: ride out a SINGLE flaky-explorer blip by keeping last-known-good, but do NOT keep a
+          // phantom-positive pool: a second consecutive empty read (>=2 polls, ~2 min at balance_interval_ms)
+          // is far more likely a real drain, and advertising liquidity the pool no longer holds makes a taker
+          // lock then wait until T1 to refund. Prefer refusing quotes (safe: the taker just retries) over
+          // over-advertising (strands taker coins), so keep this window as short as flap-tolerance allows.
           const z = (this._zeroReads[coin] = (this._zeroReads[coin] || 0) + 1);
-          if (z <= 2) { this.log.warn(`balance ${coin}`, `empty/degraded read (total 0); keeping last-known-good (${z}/2)`); continue; }
+          if (z <= 1) { this.log.warn(`balance ${coin}`, `empty/degraded read (total 0); keeping last-known-good (${z}/1)`); continue; }
           this.log.warn(`balance ${coin}`, 'sustained empty read; treating pool as drained');
         }
         this.pools.setTotal(coin, total);
@@ -351,7 +351,7 @@ export class Maker {
     if (!swap.taker.fundingSeen) { swap.taker.fundingSeen = true; this.persist(); }
     const fv = sc.verifyFundedOutput({ witnessScript: expected.witnessScript, fundedScriptPubKey: out.scriptpubkey, fundedValueSats: out.value, expectedSats: swap.sendSats, network: sc.getCoin(sendCoin).network });
     if (!fv.ok) { this.log.warn(`swap ${short(swap.quoteId)}: funded output check failed: ${fv.reason}`); this.releaseSwap(swap, 'failed'); this.send(swap.sid, { ...sc.buildMessage.abort({ quoteId: swap.quoteId, reason: fv.reason }), code: 'funded_output_invalid' }); return; }
-    const minConf = this.cfg.min_confirmations ?? 3;
+    const minConf = Math.max(1, this.cfg.min_confirmations ?? 3);   // clamp >= 1: a configured 0 would let the taker RBF/double-spend its funding AFTER the maker locks (maker-loss); never accept a 0-conf funded output
     if (!(Number.isFinite(out.confirmations) && out.confirmations >= minConf)) return; // wait for >= minConf REAL confs (NaN/undefined never passes; residual #8)
 
     swap.taker.value = out.value;
@@ -368,8 +368,14 @@ export class Maker {
     // strand already-locked coins. L-6: ONLY adopt if WE previously started funding
     // (persisted intent); the contract address is taker-computable, so without this
     // gate a taker could pre-fund it and trick the maker into "adopting" a foreign output.
-    if (swap.makerFundingStarted) try {
-      const existing = await this.chains[recvCoin].getUtxos(makerC.address);
+    if (swap.makerFundingStarted) {
+      let existing;
+      try { existing = await this.chains[recvCoin].getUtxos(makerC.address); }
+      catch (e) {
+        // P4: a FETCH FAILURE is NOT "empty". We already started funding once, so funding again against an
+        // UNREADABLE contract address risks a DOUBLE-FUND. Bail and retry next tick, when the read succeeds.
+        this.log.warn(`swap ${short(swap.quoteId)}: could not read the maker contract for the idempotency check (${e.message}); NOT re-funding this tick`); return;
+      }
       const u = (existing || []).find((o) => o.value >= swap.recvSats);
       if (u) {
         swap.maker = { contractAddr: makerC.address, fundTxid: u.txid, vout: u.vout, value: u.value };
@@ -378,7 +384,8 @@ export class Maker {
         this.log.info(`swap ${short(swap.quoteId)}: adopted existing maker funding ${u.txid}:${u.vout} (idempotent)`);
         return;
       }
-    } catch { /* contract address has no utxos yet, or fetch failed; proceed below */ }
+      // read succeeded, genuinely empty -> a prior broadcast never landed; safe to (re)fund below.
+    }
 
     // M-5: with nothing yet locked, don't lock NEW coins if our T2 refund window is
     // already too close (e.g. resuming after extended downtime).
@@ -455,6 +462,13 @@ export class Maker {
   /** Maker claims the taker's contract using the revealed secret. */
   async claimTaker(swap) {
     const sendCoin = swap.from;
+    // P1a: if we already broadcast a claim (state 'claiming'), it is NOT terminal until it CONFIRMS. Settle
+    // 'completed' only on confirmation; otherwise fall through to re-build + re-broadcast at a bumped fee, so an
+    // evicted / low-fee claim is re-driven within the T1 window instead of being silently declared done.
+    if (swap.claimTxid) {
+      let conf = 0; try { conf = await this.chains[sendCoin].confirmations(swap.claimTxid); } catch {}
+      if (conf >= (this.cfg.min_confirmations ?? 3)) { this.releaseSwap(swap, 'completed'); this.log.info(`swap ${short(swap.quoteId)}: COMPLETED: claim ${swap.claimTxid} confirmed`); return; }
+    }
     const secret = sc.hexToBytes(swap.secret);
     const contract = sc.takerContractParams({
       secretHash: sc.hexToBytes(swap.secretHash), makerRecvPubkey: this.wallet.pubkey(sendCoin),
@@ -478,9 +492,11 @@ export class Maker {
     } catch (e) { this.log.error(`swap ${short(swap.quoteId)}: build claim failed: ${e.message}`); return; }
     try {
       const txid = await this.chains[sendCoin].broadcast(redeem.hex);
-      swap.claimTxid = txid; swap.updatedAt = now();
-      this.releaseSwap(swap, 'completed');
-      this.log.info(`swap ${short(swap.quoteId)}: COMPLETED: claimed ${txid} (${value} ${sendCoin}, ${feeRate} sat/vB)`);
+      swap.claimTxid = txid; swap.state = 'claiming'; swap.updatedAt = now(); this.persist();
+      // P1a: non-terminal until it confirms. The tick re-enters claimTaker (the maker output stays spent by the
+      // taker's redeem, so watchMakerLocked keeps routing here, and 'claiming' is dispatched to claimTaker); the
+      // top-of-function gate settles 'completed' once claimTxid confirms, and re-broadcasts if it is evicted.
+      this.log.info(`swap ${short(swap.quoteId)}: claim broadcast ${txid} (${value} ${sendCoin}, ${feeRate} sat/vB); watching to confirm`);
     } catch (e) {
       // Already spent? Classify the spender; only 'completed' if it paid US (not the taker's
       // own T1 refund). Else retry with a higher fee next tick.
@@ -494,7 +510,14 @@ export class Maker {
   async settleTakerSpend(swap, spendTxid, sendCoin) {
     let stx = null; try { stx = await this.chains[sendCoin].getTx(spendTxid); } catch {}
     const paysMaker = stx && Array.isArray(stx.vout) && stx.vout.some((v) => v.scriptpubkey_address === this.wallet.address(sendCoin));
-    if (paysMaker) { swap.claimTxid = swap.claimTxid || spendTxid; this.releaseSwap(swap, 'completed'); this.log.info(`swap ${short(swap.quoteId)}: taker contract claimed to us (${spendTxid}); completed`); }
+    if (paysMaker) {
+      swap.claimTxid = swap.claimTxid || spendTxid;
+      // P1a: the claim paid us, but don't settle 'completed' until it CONFIRMS; keep it non-terminal ('claiming')
+      // so the tick keeps watching (and re-broadcasts if it is evicted before confirming).
+      let conf = 0; try { conf = await this.chains[sendCoin].confirmations(spendTxid); } catch {}
+      if (conf >= (this.cfg.min_confirmations ?? 3)) { this.releaseSwap(swap, 'completed'); this.log.info(`swap ${short(swap.quoteId)}: taker contract claim confirmed (${spendTxid}); completed`); }
+      else { if (swap.state !== 'claiming') { swap.state = 'claiming'; swap.updatedAt = now(); this.persist(); } this.log.info(`swap ${short(swap.quoteId)}: claim ${spendTxid} seen; awaiting confirmation`); }
+    }
     else { this.releaseSwap(swap, 'failed'); this.log.warn(`swap ${short(swap.quoteId)}: taker output spent by ${spendTxid} (not to us, taker refund/reorg); failed`); }
   }
 
@@ -609,7 +632,7 @@ export class Maker {
             await this.tryFundMaker(swap);
           }
           else if (swap.state === 'maker_locked' || swap.state === 'refunding') await this.watchMakerLocked(swap);
-          else if (swap.state === 'secret_known') await this.claimTaker(swap);
+          else if (swap.state === 'secret_known' || swap.state === 'claiming') await this.claimTaker(swap);
           else if (isTerminal(swap.state) && now() - swap.updatedAt > reapAfter) await this.reapTerminal(swap);
         } catch (e) { this.log.error(`swap ${short(swap.quoteId)} tick`, e.message); }
       }

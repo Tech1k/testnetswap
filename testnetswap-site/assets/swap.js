@@ -11,7 +11,7 @@
  * browser is the taker). Closing it is safe: reopen to resume or refund.
  */
 import * as sc from '/vendor/swap-core/src/index.js';
-import { runHtlcTaker, genHtlcKeys, htlcFundingAddress, refundHtlc } from '/vendor/swap-taker/taker.js';
+import { runHtlcTaker, genHtlcKeys, htlcFundingAddress, refundHtlc, redeemHtlc } from '/vendor/swap-taker/taker.js';
 import { connectRelay } from '/vendor/swap-taker/relay.js';
 import { esploraChain } from '/vendor/swap-taker/esplora.js';
 import qrcode from '/vendor/qrcode.mjs';
@@ -538,6 +538,10 @@ async function runRecord(rec) {
           // H-1/M-2: persist the COMPLETE recovery blob (awaited) BEFORE the funding
           // broadcast; if this save fails, the swap aborts before any coins move.
           onAfterFund: async (recovery) => { rec.recovery = recovery; rec.stage = 'swapping'; put(rec); },
+          // P1c: persist the REDEEM-CAPABLE blob at the reveal, so a reload can rebuild + rebroadcast the redeem
+          // (redeemHtlc) instead of being stuck. Superset of the refund blob; `revealed` flips the recovery UI
+          // from "refund at T1" to "keep receiving" (the T1 refund is unsafe once the secret is public).
+          onBeforeReveal: async (rr) => { rec.recovery = rr; put(rec); },
         },
       });
       const previewed = rec.recvSats;
@@ -595,10 +599,11 @@ async function runRecord(rec) {
     setFlow(el('div', { class: 'msg warn' },
       el('div', {}, 'Your ' + r.to + ' redeem is broadcast but has not confirmed yet (the ' + r.to + ' chain is slow right now). Keep this tab open; it settles on its own once a block arrives.'),
       r.redeemTxid ? el('div', { class: 'row', style: 'margin-top:8px' }, el('span', { class: 'muted', style: 'font-size:13px;margin-right:6px' }, 'Redeem tx:'), txlink(r.to, r.redeemTxid)) : null,
+      (r.recovery && r.recovery.revealed) ? el('div', { class: 'row', style: 'margin-top:8px' }, el('button', { class: 'formbtn ghost', type: 'button', onclick: (e) => doRedeem(e.target, r) }, 'Keep trying to receive ' + r.to)) : null,
     ));
   }
   function renderStalled(r) {
-    if (r.redeemTxid) return renderRedeemPending(r); // secret already public (redeem broadcast): the T1 refund is now unsafe, so never offer it - monitor the redeem instead
+    if (r.redeemTxid || (r.recovery && r.recovery.revealed)) return renderRedeemPending(r); // secret already public (redeem broadcast / revealed blob): the T1 refund is now unsafe, so never offer it - re-drive the redeem instead
     const now = Math.floor(Date.now() / 1000); const t1 = (r.recovery && r.recovery.t1) || 0;
     const canRefund = Number.isFinite(t1) && t1 > 0 && now >= t1; // L6: a missing/zero t1 is NOT "refund now"
     setFlow(el('div', { class: 'msg warn' },
@@ -628,6 +633,31 @@ async function doRefund(btn, rec) {
     const err = el('div', { class: 'msg bad refund-err', style: 'margin-top:8px' }, 'Refund failed (safe to retry): ' + (e.message || e));
     const host = btn.parentNode;
     if (host) { const prev = host.querySelector('.refund-err'); if (prev) prev.replaceWith(err); else host.appendChild(err); }
+  }
+}
+
+// P1c: re-drive a revealed-but-unconfirmed redeem from the redeem-capable blob (the secret is already public,
+// so the T1 refund is unsafe; the only safe action is to get the redeem confirmed). Idempotent + safe to retry.
+async function doRedeem(btn, rec) {
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Receiving…';
+  try {
+    const r = await redeemHtlc({ sc, chains, recovery: rec.recovery, onStatus: () => {} });
+    if (r.confirmed) {
+      rec.stage = 'done'; if (r.redeemTxid) rec.redeemTxid = r.redeemTxid; wipeKeys(rec); put(rec); renderSwaps();
+      $('flow').replaceChildren(el('div', { class: 'msg ok' }, el('div', {}, '✓ Received your ' + rec.to + '.'), rec.redeemTxid ? el('a', { class: 'mono-link', href: explorerTx(rec.to, rec.redeemTxid), target: '_blank', rel: 'noopener' }, rec.redeemTxid) : null));
+      return;
+    }
+    if (r.redeemTxid) { rec.redeemTxid = r.redeemTxid; put(rec); }
+    btn.disabled = false; btn.textContent = orig;
+    const msg = r.gone
+      ? 'The maker ' + rec.to + ' lock is already spent, so your ' + rec.to + ' most likely arrived. Check your ' + rec.to + ' balance; if it did not, keep this and retry.'
+      : 'Still not confirmed. The redeem is in the mempool at max fee; try again shortly.';
+    const host = btn.parentNode, note = el('div', { class: 'msg warn redeem-note', style: 'margin-top:8px' }, msg);
+    if (host) { const prev = host.querySelector('.redeem-note'); if (prev) prev.replaceWith(note); else host.appendChild(note); }
+  } catch (e) {
+    btn.disabled = false; btn.textContent = orig;
+    const host = btn.parentNode, note = el('div', { class: 'msg bad redeem-note', style: 'margin-top:8px' }, 'Could not finish receiving (safe to retry): ' + ((e && e.message) || e));
+    if (host) { const prev = host.querySelector('.redeem-note'); if (prev) prev.replaceWith(note); else host.appendChild(note); }
   }
 }
 

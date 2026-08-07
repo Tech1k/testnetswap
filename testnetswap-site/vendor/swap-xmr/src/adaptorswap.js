@@ -29,6 +29,11 @@ import { parseDleq } from './crypto.js';
 import { validateXmrTimelocks } from './swap.js';
 
 const DUST = 546;
+// Canonical fixed fee (sats) for the pre-signed BTC/LTC-side txs. SINGLE SOURCE OF TRUTH: driver.js imports
+// this AS its FEE. The two MUST NOT diverge - the driver computes cancelAmount = lockAmount - FEE while the
+// templates deduct feeSats; if they differ, the cancel output value and the adaptor sighash desync and EVERY
+// swap silently fails. Keeping one constant makes that divergence impossible.
+export const FEE_SATS = 1000;
 const isHex = (s, bytes) => typeof s === 'string' && /^[0-9a-fA-F]*$/.test(s) && s.length === bytes * 2;
 const ED_IDENTITY = '01' + '00'.repeat(31); // compressed ed25519 identity point
 
@@ -136,7 +141,7 @@ function out(prevAmount, feeSats) {
   return o;
 }
 
-export function redeemTemplate(btc, { ctx, lockTxid, lockVout, lockAmount, aliceDest, network, feeSats = 1000 }) {
+export function redeemTemplate(btc, { ctx, lockTxid, lockVout, lockAmount, aliceDest, network, feeSats = FEE_SATS }) {
   return btcswap.spendTemplate(btc, {
     prevTxid: lockTxid, vout: lockVout, prevAmount: lockAmount,
     prevScriptPubKeyHex: ctx.btcLock.scriptPubKey, witnessScriptHex: ctx.btcLock.witnessScript,
@@ -144,8 +149,12 @@ export function redeemTemplate(btc, { ctx, lockTxid, lockVout, lockAmount, alice
   });
 }
 
-export function cancelTemplate(btc, { ctx, lockTxid, lockVout, lockAmount, network, feeSats = 1000 }) {
+export function cancelTemplate(btc, { ctx, lockTxid, lockVout, lockAmount, network, feeSats = FEE_SATS }) {
   const cancelWsh = btc.p2wsh({ script: Uint8Array.from(Buffer.from(ctx.cancelScriptHex, 'hex')) }, network);
+  // A lock must fund the WHOLE unwind chain: cancel (one fee) THEN refund OR punish (a second fee), each
+  // clearing DUST. Reject a too-small lock here (need lockAmount >= 2*feeSats + DUST) so the BTC can never
+  // strand in a cancel output that no refund/punish can spend. (The maker also enforces this via MIN_SETTLE_LOCK_SATS.)
+  if (out(lockAmount, feeSats) < feeSats + DUST) throw new Error(`lockAmount ${lockAmount} too small: the cancel output cannot fund a refund/punish spend (need >= ${2 * feeSats + DUST})`);
   return {
     cancelAddress: cancelWsh.address,
     cancelScriptPubKeyHex: Buffer.from(cancelWsh.script).toString('hex'),
@@ -158,7 +167,7 @@ export function cancelTemplate(btc, { ctx, lockTxid, lockVout, lockAmount, netwo
   };
 }
 
-export function refundTemplate(btc, { ctx, cancelTxid, cancelVout, cancelAmount, cancelScriptPubKeyHex, bobDest, network, feeSats = 1000 }) {
+export function refundTemplate(btc, { ctx, cancelTxid, cancelVout, cancelAmount, cancelScriptPubKeyHex, bobDest, network, feeSats = FEE_SATS }) {
   return btcswap.spendTemplate(btc, {
     prevTxid: cancelTxid, vout: cancelVout, prevAmount: cancelAmount,
     prevScriptPubKeyHex: cancelScriptPubKeyHex, witnessScriptHex: ctx.cancelScriptHex,
@@ -167,7 +176,7 @@ export function refundTemplate(btc, { ctx, cancelTxid, cancelVout, cancelAmount,
 }
 
 /** Alice's unilateral punish spend (cancel ELSE branch); only valid after T2. */
-export function punishTemplate(btc, { ctx, cancelTxid, cancelVout, cancelAmount, cancelScriptPubKeyHex, aliceDest, network, feeSats = 1000 }) {
+export function punishTemplate(btc, { ctx, cancelTxid, cancelVout, cancelAmount, cancelScriptPubKeyHex, aliceDest, network, feeSats = FEE_SATS }) {
   return btcswap.spendTemplate(btc, {
     prevTxid: cancelTxid, vout: cancelVout, prevAmount: cancelAmount,
     prevScriptPubKeyHex: cancelScriptPubKeyHex, witnessScriptHex: ctx.cancelScriptHex,

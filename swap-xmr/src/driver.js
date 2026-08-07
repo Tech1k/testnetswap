@@ -31,7 +31,7 @@ export const MessageTypes = {
   REDEEM_ADAPTOR: 'redeem_adaptor', ABORT: 'abort',
 };
 const M = MessageTypes;
-const FEE = 1000;
+const FEE = as.FEE_SATS;   // single source of truth (see adaptorswap.js): the driver's cancelAmount math and the templates' fee MUST be the same constant, or the adaptor sighash desyncs from the broadcast tx.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // The cancel output is spent by EITHER the maker's refund (IF branch: [sigB, sigA, OP_1, script],
 // 4 items, a real sig at index 1) or Alice's own punish (ELSE branch: [sigA, <empty>, script], 3
@@ -86,10 +86,17 @@ export async function bobSwap({ x, btc, transport, chains, km, params }) {
   if (bundleMsg.redeemAddr != null) { try { btc.Address(sendCoinNetwork).decode(String(bundleMsg.redeemAddr)); } catch { throw fail(transport, 'alice redeem address invalid for this network'); } }
   const aliceRedeemDest = bundleMsg.redeemAddr || dest(btc, alice, sendCoinNetwork);
 
-  const ctx = as.sharedContext(x, btc, { alice, bob, sendCoinNetwork, moneroNetwork, t1Blocks, t2Blocks });
+  // Both of these can throw (timelock validation / no fundable UTXOs). They run BEFORE any lock, so
+  // nothing is committed, but route the failure through fail() so the taker receives an ABORT and fast-fails
+  // instead of hanging until its setup timeout (mirrors the other pre-lock failure paths above).
+  let ctx;
+  try { ctx = as.sharedContext(x, btc, { alice, bob, sendCoinNetwork, moneroNetwork, t1Blocks, t2Blocks }); }
+  catch (e) { throw fail(transport, 'shared-context/timelock validation failed: ' + ((e && e.message) || e)); }
 
   // Build (NOT broadcast) the funded 2-of-2 lock; share its outpoint.
-  const lock = await chains.btc.buildLockFunding({ address: ctx.btcLock.address, amount: lockAmount });
+  let lock;
+  try { lock = await chains.btc.buildLockFunding({ address: ctx.btcLock.address, amount: lockAmount }); }
+  catch (e) { throw fail(transport, 'maker could not build the lock funding: ' + ((e && e.message) || e)); }
   transport.send({ type: M.LOCK_OUTPOINT, txid: lock.txid, vout: lock.vout, amount: lock.amount });
 
   // Unwind handshake: both pre-sign cancel; Alice sends her refund adaptor. Bob
@@ -145,7 +152,7 @@ export async function bobSwap({ x, btc, transport, chains, km, params }) {
  * recovers s_a and sweeps the XMR (the winning outcome) instead of refunding.
  * Requires `unwind.redeemAdaptor` (set once Bob released it) to recover from redeem.
  */
-export async function bobUnwind({ x, btc, chains, km, unwind, xmrRestoreHeight = 0, xmrSweepDest }) {
+export async function bobUnwind({ x, btc, chains, km, unwind, xmrRestoreHeight = 0, xmrSweepDest, refundConfTries = 40, refundConfPollMs = 15000 }) {
   // Try to claim from a redeem that may already be (or become) on-chain.
   const tryRedeem = async () => {
     if (!unwind.redeemAdaptor || !chains.btc.getSpend) return null;
@@ -174,7 +181,20 @@ export async function bobUnwind({ x, btc, chains, km, unwind, xmrRestoreHeight =
   //    in swap.js). Only then reveal m_b via refund so Alice can reclaim.
   const late = await tryRedeem(); if (late) return late;
   const fin = as.bobFinalizeRefund(x, btc, { tx: unwind.refundTx, ctx: unwind.ctx, bobBtcKey: km.btcKey, bobMSpend: km.mSpend, refundSighash: unwind.refundSighash, aliceRefundAdaptor: unwind.refundAdaptor, aliceBtcPub: unwind.alice.btcPub, bobPb: as.publicBundle(x, km).P });
-  return { state: 'refunded', refundTxid: await chains.btc.broadcast(fin.hex) };
+  const refundTxid = await chains.btc.broadcast(fin.hex);   // reveals m_b, returns Bob's BTC; the sighash is fixed, so this CANNOT be RBF'd
+  // KEEP-ALIVE (P1b): monitor the refund to confirmation instead of declaring success on broadcast. A caller
+  // that forgets the durable record on a mere broadcast would strand Bob if the refund is evicted or never
+  // confirms (no RBF to rescue it). While waiting, keep re-checking for a late redeem (still strictly better
+  // for Bob). No confirmation-depth source (mock/tests) -> treat as settled. If it hasn't confirmed within the
+  // budget, return 'refund_pending' so the caller KEEPS the record and resume() re-attempts (future: CPFP).
+  let confirmed = !chains.btc.txConfs;
+  for (let i = 0; !confirmed && i < refundConfTries; i++) {
+    const r = await tryRedeem(); if (r) return r;
+    let c = 0; try { c = await chains.btc.txConfs(refundTxid); } catch {}
+    if (c >= 1) { confirmed = true; break; }
+    await sleep(refundConfPollMs);
+  }
+  return { state: confirmed ? 'refunded' : 'refund_pending', refundTxid, confirmed };
 }
 
 /**

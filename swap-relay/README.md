@@ -91,6 +91,7 @@ Secrets belong in the environment, not `config.json`. `makerToken`, if used, rea
 | `makerToken` | optional extra gate for the `defaultMaker` only (prefer `RELAY_MAKER_TOKEN`); not needed for the ed25519 handshake |
 | `maxTakers`, `maxMakers` | caps on concurrent takers and registered makers |
 | `maxPendingMakers` | cap on challenged-but-unregistered maker sockets |
+| `maxPendingMakersPerIp` | per-IP sub-cap on pending-maker sockets, so a few IPs can't monopolize the pool (default 2) |
 | `maxPerIp` | concurrent connections per IP (takers and makers) |
 | `msgsPerMinPerConn`, `makerMsgsPerMin` | per-connection flood guards (makers get the higher cap) |
 | `registerTimeoutMs` | a challenged maker must register within this or be dropped |
