@@ -40,6 +40,10 @@
   Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
 /donate.html
   Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/whitepaper
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+/whitepaper.html
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; manifest-src 'self'; connect-src 'self' https://api.testnetswap.com wss://relay.testnetswap.com https://relay.testnetswap.com https://testnetscan.com https://mempool.space https://cypherfaucet.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
 
 # PERMISSIVE CSP: the swap app (both URL forms) runs the tXMR->tBTC Monero engine (WASM +
 #    Web Worker), which needs 'wasm-unsafe-eval' + 'unsafe-eval' + worker-src + the Monero node

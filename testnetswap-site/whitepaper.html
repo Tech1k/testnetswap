@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | TestnetSwap © 2026 Tech1k -->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TestnetSwap Whitepaper · Non-Custodial Cross-Chain Atomic Swaps</title>
+<meta name="description" content="The TestnetSwap technical whitepaper: two non-custodial cross-chain atomic-swap constructions (HTLC for tLTC and tBTC, a cross-curve adaptor signature for Monero into either), their timelock-safety arguments, and an honest threat model. Testnet only.">
+<meta property="og:title" content="TestnetSwap Whitepaper · Non-Custodial Cross-Chain Atomic Swaps">
+<meta property="og:description" content="Two non-custodial cross-chain atomic-swap constructions: HTLC for tLTC and tBTC, and a cross-curve adaptor signature for Monero into either. The timelock-safety arguments and an honest threat model. Testnet only.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://testnetswap.com/whitepaper.html">
+<link rel="canonical" href="https://testnetswap.com/whitepaper.html">
+<meta property="og:image" content="https://testnetswap.com/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="TestnetSwap Whitepaper · Non-Custodial Cross-Chain Atomic Swaps">
+<meta name="twitter:description" content="Two non-custodial cross-chain atomic-swap constructions: HTLC for tLTC and tBTC, and a cross-curve adaptor signature for Monero into either, with an honest threat model. Testnet only.">
+<meta name="twitter:image" content="https://testnetswap.com/assets/og.png">
+<meta name="author" content="Kristian Kramer (Tech1k)">
+<meta name="citation_title" content="TestnetSwap: Non-Custodial Cross-Chain Atomic Swaps for Testnet Coins, in the Browser">
+<meta name="citation_author" content="Kramer, Kristian">
+<meta name="citation_publication_date" content="2026/08">
+<meta name="citation_technical_report_institution" content="Independent">
+<meta property="article:author" content="Kristian Kramer (Tech1k)">
+<meta name="theme-color" content="#14161b">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<script src="/assets/theme-init.js?v=1"></script>
+<link rel="stylesheet" href="/assets/style.css">
+<style>
+/* Whitepaper page: a long-form reading treatment layered on the site's shared
+   design tokens (assets/style.css), so it is theme-aware for free and matches
+   the rest of the site. Inline <style> is allowed by the strict per-page CSP
+   (style-src 'self' 'unsafe-inline'); the only script is /assets/whitepaper.js. */
+
+.wp-masthead {
+  margin: 8px 0 0;
+  padding: 42px 30px 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background:
+    radial-gradient(130% 170% at 90% -25%, var(--accent-bg), transparent 62%),
+    var(--card);
+}
+.wp-eyebrow {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--accent); margin: 0 0 12px;
+}
+h1.wp-title {
+  font-size: clamp(1.9rem, 4.4vw, 2.7rem); font-weight: 800; line-height: 1.1;
+  letter-spacing: -0.015em; text-wrap: balance; margin: 0 0 14px; max-width: 24ch; color: var(--text);
+}
+.wp-masthead .wp-lede {
+  font-size: 1.12rem; line-height: 1.55; color: var(--muted); max-width: 56ch; margin: 0 0 20px;
+}
+.wp-byline { font-size: 0.98rem; line-height: 1.5; color: var(--muted); margin: 0 0 18px; }
+.wp-byline .name { color: var(--text); font-weight: 700; }
+.wp-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.wp-chip {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.01em; padding: 5px 11px;
+  border-radius: var(--pill); border: 1px solid var(--border2); color: var(--muted); background: var(--surface);
+}
+.wp-chip.accent { color: var(--accent-soft); border-color: var(--accent-dim); background: var(--accent-bg); }
+.wp-chip.warn { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+
+/* ---- shell: sticky TOC rail + article --------------------------------- */
+.wp-shell {
+  display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 40px;
+  align-items: start; margin-top: 22px;
+}
+.wp-toc { position: sticky; top: 76px; padding-top: 8px; }
+.wp-toc-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--faint); margin: 0 0 10px;
+}
+.wp-toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.wp-toc a {
+  display: flex; gap: 10px; font-size: 13.5px; line-height: 1.35; color: var(--muted);
+  padding: 6px 10px; border-radius: var(--r-sm); border-left: 2px solid transparent; text-decoration: none;
+}
+.wp-toc a .n { color: var(--accent); font-variant-numeric: tabular-nums; min-width: 1.4rem; }
+.wp-toc a:hover { background: var(--accent-bg); color: var(--text); text-decoration: none; }
+.wp-toc a.active { color: var(--text); background: var(--accent-bg); border-left-color: var(--accent); font-weight: 600; }
+
+/* ---- article ---------------------------------------------------------- */
+.wp-article { max-width: 42rem; min-width: 0; }
+.wp-abstract { border-left: 2px solid var(--accent); padding: 2px 0 2px 20px; margin: 0 0 40px; }
+.wp-abstract .lab {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); margin: 0 0 10px;
+}
+.wp-abstract p { margin: 0; color: var(--muted); line-height: 1.62; }
+
+.wp-sec { margin: 0 0 36px; scroll-margin-top: 76px; }
+.wp-article h2 {
+  font-size: 1.5rem; font-weight: 750; line-height: 1.2; letter-spacing: -0.01em; text-wrap: balance;
+  margin: 40px 0 16px; padding-top: 22px; border-top: 1px solid var(--border);
+  display: flex; gap: 12px; align-items: baseline; color: var(--text);
+}
+.wp-article h2 .num {
+  font-size: 0.9rem; font-weight: 700; letter-spacing: 0.02em; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.wp-article h3 {
+  font-size: 1.12rem; font-weight: 700; letter-spacing: -0.003em; margin: 28px 0 8px;
+  color: var(--text); text-wrap: balance; line-height: 1.3;
+}
+.wp-article p { margin: 0 0 15px; }
+.wp-article ul, .wp-article ol { margin: 0 0 16px; padding-left: 20px; }
+.wp-article li { margin: 0 0 8px; }
+.wp-article li::marker { color: var(--accent); }
+.wp-numbered { counter-reset: item; list-style: none; padding-left: 0; }
+.wp-numbered > li { position: relative; padding-left: 34px; counter-increment: item; }
+.wp-numbered > li::before {
+  content: counter(item); position: absolute; left: 0; top: 1px;
+  font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-bg);
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.wp-article strong { font-weight: 700; color: var(--text); }
+.wp-article em { font-style: italic; }
+.wp-article code {
+  font-family: var(--mono); font-size: 0.85em; background: var(--surface);
+  padding: 0.1em 0.36em; border-radius: 4px; border: 1px solid var(--border); color: var(--text);
+  word-break: break-word;
+}
+.wp-article pre {
+  font-family: var(--mono); background: var(--surface); border: 1px solid var(--border);
+  border-left: 2px solid var(--accent); border-radius: var(--r-sm); padding: 14px 16px;
+  margin: 0 0 18px; overflow-x: auto; font-size: 13px; line-height: 1.6;
+}
+.wp-article pre code { background: none; border: 0; padding: 0; font-size: inherit; word-break: normal; color: var(--text); }
+
+.wp-table-wrap { overflow-x: auto; margin: 0 0 18px; border: 1px solid var(--border); border-radius: var(--r-sm); }
+.wp-article table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.wp-article th, .wp-article td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.wp-article thead th {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--faint); background: var(--surface); border-bottom: 1px solid var(--border2);
+}
+.wp-article tbody tr:last-child td { border-bottom: 0; }
+.wp-article td code, .wp-article th code { background: transparent; border: 0; padding: 0; color: var(--muted); font-size: 0.82em; }
+.wp-article table td:first-child { color: var(--text); font-weight: 500; }
+.wp-num-col { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.wp-callout {
+  background: var(--warn-bg); border: 1px solid var(--border2); border-left: 2px solid var(--warn);
+  border-radius: var(--r-sm); padding: 14px 18px 4px; margin: 0 0 18px;
+}
+.wp-callout .lab {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--warn); margin: 0 0 8px;
+}
+.wp-callout ul { margin: 0 0 4px; }
+.wp-callout li { margin: 0 0 10px; }
+.wp-note {
+  font-size: 0.95rem; color: var(--muted); background: var(--card);
+  border: 1px dashed var(--border2); border-radius: var(--r-sm); padding: 12px 16px; margin: 0 0 18px;
+}
+.wp-cite { border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--card); padding: 14px 16px 4px; margin: 24px 0 0; }
+.wp-cite .lab { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin: 0 0 8px; }
+.wp-cite p { margin: 0 0 8px; color: var(--muted); }
+.wp-cite pre { margin: 8px 0 10px; }
+
+@media (max-width: 860px) {
+  .wp-shell { grid-template-columns: 1fr; gap: 0; }
+  .wp-toc { position: static; padding: 16px 0 18px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+  .wp-toc ol { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+  .wp-article { max-width: 100%; }
+}
+@media (max-width: 520px) {
+  .wp-toc ol { grid-template-columns: 1fr; }
+  .wp-masthead { padding: 30px 20px 26px; }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<nav class="navbar">
+  <a href="/" class="brand"><span class="brand-name">Testnet<b>Swap</b></span></a>
+  <input type="checkbox" class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" />
+  <label for="menu-toggle" class="hamburger"><div></div><div></div><div></div></label>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light / dark theme" title="Toggle theme"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/swap.html">Swap</a>
+    <a href="/network.html">Network</a>
+    <a href="/stats.html">Stats</a>
+    <a href="/how-it-works.html">How it works</a>
+    <a href="/api.html">API</a>
+    <a href="/donate.html">Donate</a>
+    <a href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener" class="ext">Source</a>
+  </div>
+</nav>
+
+<main id="main">
+
+  <header class="wp-masthead">
+    <p class="wp-eyebrow">Technical Whitepaper · Version 0.1 · August 2026</p>
+    <h1 class="wp-title">Non-Custodial Cross-Chain Atomic Swaps for Testnet Coins, in the Browser</h1>
+    <p class="wp-byline"><span class="name">Kristian Kramer</span> (Tech1k)<br>Independent &middot; <a href="https://testnetswap.com">testnetswap.com</a> &middot; <a href="mailto:hello@tech1k.com">hello@tech1k.com</a></p>
+    <p class="wp-lede">Litecoin testnet and Bitcoin testnet4 by HTLC, and Monero into either by a cross-curve adaptor signature. Both legs signed in your own browser. No operator ever holds your keys.</p>
+    <div class="wp-meta">
+      <span class="wp-chip warn">Testnet only</span>
+      <span class="wp-chip warn">Experimental</span>
+      <span class="wp-chip accent">Non-custodial</span>
+      <span class="wp-chip">secp256k1 &harr; ed25519</span>
+      <span class="wp-chip">AGPL-3.0</span>
+    </div>
+  </header>
+
+  <div class="wp-shell">
+    <nav class="wp-toc" aria-label="Contents">
+      <p class="wp-toc-title">Contents</p>
+      <ol>
+        <li><a href="#s1"><span class="n">1</span><span>Introduction</span></a></li>
+        <li><a href="#s2"><span class="n">2</span><span>Background &amp; Prior Work</span></a></li>
+        <li><a href="#s3"><span class="n">3</span><span>System Architecture</span></a></li>
+        <li><a href="#s4"><span class="n">4</span><span>Same-Curve HTLC</span></a></li>
+        <li><a href="#s5"><span class="n">5</span><span>Cross-Curve Monero</span></a></li>
+        <li><a href="#s6"><span class="n">6</span><span>Security &amp; Threat Model</span></a></li>
+        <li><a href="#s7"><span class="n">7</span><span>Limitations &amp; Future Work</span></a></li>
+        <li><a href="#s8"><span class="n">8</span><span>Conclusion</span></a></li>
+        <li><a href="#sa"><span class="n">A</span><span>Key Parameters</span></a></li>
+        <li><a href="#sb"><span class="n">B</span><span>References</span></a></li>
+      </ol>
+    </nav>
+
+    <article class="wp-article">
+      <div class="wp-abstract">
+        <p class="lab">Abstract</p>
+        <p>TestnetSwap is a non-custodial cross-chain atomic swap system for cryptocurrency testnets. It runs two constructions behind one interface: a same-curve Hash Time-Locked Contract swap between Litecoin testnet (tLTC) and Bitcoin testnet4 (tBTC), both secp256k1 UTXO chains; and a cross-curve construction that settles Monero into either UTXO chain using a secp256k1 to ed25519 discrete-log equality proof combined with an ECDSA adaptor signature that carries a Monero spend-key share across curves. Both sides are signed in the user's own browser. No component of the service, not the maker, not the relay, not a compromised web server, ever holds the user's keys or coins; safety rests on on-chain contracts rather than on trusting any operator. The taker engine is a single dependency-injected module that runs unchanged under Node and in the browser, with cryptographic code vendored byte-identically across surfaces and enforced by a hash manifest in CI. This document describes both constructions, states the timelock-safety arguments with their concrete parameters, and gives an honest threat model that separates what has been demonstrated from what a deployment must verify before it is trusted with anything of value. All coins are testnet coins with no monetary value by design. The upstream cryptography is not formally audited. This is a testnet research system, and nothing here claims mainnet readiness.</p>
+      </div>
+
+      <section class="wp-sec" id="s1">
+        <h2><span class="num">1</span><span>Introduction</span></h2>
+
+        <h3>1.1 Motivation</h3>
+        <p>Atomic swaps let two parties exchange coins on different chains without a custodian: either both legs happen or neither does. For two chains that share a scripting model and an elliptic curve, the classic HTLC solves this cleanly. Monero breaks the recipe: it has no scripts and no timelocks, so there is nowhere on the Monero chain to host a hashlock, a refund branch, or any decision logic about who receives the coins if a swap stalls. The atomic link therefore has to be built entirely on the Bitcoin or Litecoin side and carried across to Monero by cryptography rather than by a matching on-chain script.</p>
+        <p>Beyond the cryptography, most working trustless Monero swap implementations are desktop applications that drive a full Monero node. TestnetSwap targets a harder deployment: the whole taker runs client-side in a browser tab, non-custodially, with the Monero wallet operations (key-share math, lock-address derivation, scanning, and sweeping) executed as WebAssembly. The goal is a swap a user can perform from a web page without installing software and without ever handing keys to an operator.</p>
+
+        <h3>1.2 Contributions</h3>
+        <ol class="wp-numbered">
+          <li>A non-custodial, in-browser implementation of the cross-curve Monero-into-UTXO adaptor swap, including the Monero-side wallet work in WebAssembly.</li>
+          <li>A single taker engine, injected with all heavy dependencies, that runs byte-identically across Node, the website, and a wallet, with the shipped browser code provably equal to the tested code via a vendoring hash manifest checked in CI.</li>
+          <li>A same-curve HTLC swap for tLTC and tBTC with an explicit, parameterized timelock-safety argument, including a fee-bumping redeem ladder whose worst-case duration is coupled by a runtime assertion to the secret-reveal safety margin.</li>
+          <li>A threat model and a "proven versus must-verify-before-real-funds" checklist that treats the experimental Monero path honestly and keeps it disabled by default.</li>
+        </ol>
+
+        <h3>1.3 Scope and non-goals</h3>
+        <p>TestnetSwap operates on testnet chains only. The coins are worthless by construction, which is what makes it an acceptable place to run cryptography that has had internal adversarial review but no independent formal audit. Native Monero swaps ship disabled (<code>xmr.enabled: false</code>) behind an explicit <code>i_understand_experimental</code> acknowledgment. The deployed Monero direction is one-way: Monero settles into tBTC or tLTC, never the reverse. The construction is symmetric and the reverse direction is future work; Section 7 explains why the reverse is not merely a matter of flipping a flag. Nothing here should be read as a claim of mainnet safety.</p>
+      </section>
+
+      <section class="wp-sec" id="s2">
+        <h2><span class="num">2</span><span>Background and Prior Work</span></h2>
+
+        <h3>2.1 Same-curve HTLC swaps</h3>
+        <p>A Hash Time-Locked Contract funds an output spendable two ways: by anyone who reveals a preimage <code>S</code> of a published hash <code>H = SHA256(S)</code> and signs with the recipient key, or, after an absolute timelock, by the funder's refund key. Two parties swap by each funding an HTLC on their chain under the same <code>H</code>. Whoever holds <code>S</code> claims the counterparty's output by revealing <code>S</code> on-chain; the counterparty reads <code>S</code> from that spend and claims the first output. If either side stalls, the timelocks return the coins. TestnetSwap's tLTC and tBTC legs are both secp256k1 P2WSH chains, so one HTLC construction serves both.</p>
+
+        <h3>2.2 Adaptor signatures</h3>
+        <p>An adaptor signature (a "one-time verifiably encrypted signature") is a signature encrypted under a public point <code>Y = y&middot;G</code>: it can be verified as a commitment to a valid signature without being one, and completed into a valid signature by anyone who knows the discrete log <code>y</code>. Publishing the completed signature reveals <code>y</code> to anyone holding the adaptor. Adaptor signatures let a party's on-chain spend leak a scalar secret as a side effect, which is the mechanism that binds two chains without a shared hashlock.</p>
+
+        <h3>2.3 The Monero scriptless problem</h3>
+        <p>Monero has neither scripts nor timelocks. It cannot host an HTLC. The only lever available is the spend key of a Monero output. If an output is locked to a key that is the sum of two secret shares held by the two parties, then whoever learns both shares can spend it. The swap is engineered so that settling the Bitcoin or Litecoin side (an ordinary on-chain spend) leaks the missing Monero share to the correct party through an adaptor signature. All refund, cancel, and punish logic lives on the UTXO side.</p>
+
+        <h3>2.4 Prior art and how this differs</h3>
+        <p>The construction follows the Bitcoin-Monero cross-chain atomic swap of Gugger (Cryptology ePrint Archive 2020/1126; arXiv 2101.12332), the same lineage as the Farcaster and UnstoppableSwap / xmr-btc-swap stacks. Those reference stacks typically run the BTC-into-XMR direction as a desktop client with a full node. TestnetSwap differs in three ways: it is browser-based and non-custodial (the Monero WebAssembly wallet runs in the page); it deploys the Monero-into-UTXO direction, which places the liveness-critical role on the always-online maker rather than the browser user (Section 5.6); and it reuses one injected taker engine across a website and a wallet.</p>
+      </section>
+
+      <section class="wp-sec" id="s3">
+        <h2><span class="num">3</span><span>System Architecture</span></h2>
+
+        <h3>3.1 A six-package monorepo with no build step</h3>
+        <p>The system is six sibling packages, each an ES module at version 0.1.0 with <code>engines.node &gt;= 20</code>, under AGPL-3.0-or-later:</p>
+        <div class="wp-table-wrap">
+          <table>
+            <thead><tr><th>Package</th><th>Responsibility</th></tr></thead>
+            <tbody>
+              <tr><td><code>swap-core</code></td><td>Pure HTLC protocol: contract construction, transaction building, secret handling, state machine, wire messages. No keys, no coins, no server, no UI.</td></tr>
+              <tr><td><code>swap-taker</code></td><td>The client-side taker engine: relay client, chain adapter, HTLC and Monero swap runners.</td></tr>
+              <tr><td><code>swap-relay</code></td><td>A keyless <code>{sid, msg}</code> message pipe plus a maker directory.</td></tr>
+              <tr><td><code>swap-maker</code></td><td>The always-on maker daemon: quotes, liquidity, the counterparty side of every swap.</td></tr>
+              <tr><td><code>swap-xmr</code></td><td>Native Monero swaps via the cross-curve adaptor construction. Experimental, off by default.</td></tr>
+              <tr><td><code>testnetswap-site</code></td><td>The static website and a read-only status and discovery API.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>There is no build step. Sibling packages are linked by <code>file:</code> dependencies, and the cryptographic libraries (<code>@scure/btc-signer</code>, <code>@noble/*</code>) are vendored as <code>.mjs</code> files that run identically in the browser and under Node, with no bundler and no CDN. Litecoin testnet parameters are defined locally because the vendored signer ships only Bitcoin parameters.</p>
+
+        <h3>3.2 The dependency-injected two-surface taker engine</h3>
+        <p>The engine in <code>swap-taker/src/taker.js</code> takes every heavy dependency as an argument and imports nothing of its own; the exported functions destructure <code>sc</code> (swap-core), <code>x</code> (the WebAssembly adaptor crypto), <code>btc</code>, <code>as</code> (adaptor swap), <code>driver</code>, and the chain and relay adapters from their parameters. The same file therefore runs on two surfaces:</p>
+        <ul>
+          <li>Under Node, <code>swap-taker/src/index.js</code> provides <code>loadNodeDeps()</code>, which bare-imports swap-core and swap-xmr and loads the WebAssembly crypto.</li>
+          <li>In the browser, the site injects its own vendored copies: <code>assets/swap.js</code> imports <code>/vendor/swap-core</code> and <code>/vendor/swap-taker</code>, builds an esplora-backed <code>chains</code> object, and calls <code>runHtlcTaker(...)</code>; <code>assets/xmr-swap.js</code> injects the adaptor-swap modules and calls <code>runXmrTaker(...)</code>.</li>
+        </ul>
+        <p>The engine holds no long-lived secrets. <code>genHtlcKeys</code> mints a fresh preimage and three fresh private keys per swap; state that must outlive a page reload is a small recovery blob handed to the host through awaited hooks and stored by the host, never by the engine. Trust in the maker is not assumed inside the engine: the taker funds only after <code>checkAcceptAgainstQuote</code>, redeems only after <code>verifyMakerContract</code> and <code>verifyFundedOutput</code> on the confirmed maker output, and aborts if the execution-time rate falls below the previewed minimum.</p>
+
+        <h3>3.3 The relay: a keyless message pipe</h3>
+        <p>The relay is a dumb WSS message pipe that holds no funds and no keys and never inspects swap semantics. It routes line-delimited JSON <code>{sid, msg}</code> frames between takers and makers and publishes a maker directory at <code>GET /roster</code>. It authenticates makers with an ed25519 challenge whose signed string is domain-separated, relay-bound, and time-bound:</p>
+        <pre><code>"testnetswap-relay-maker|v1|" + relayId + "|" + nonce + "|" + expiry</code></pre>
+        <p>The 32-byte nonce is fresh per socket and the <code>relayId</code> binds the signature to this relay, so a signature cannot be replayed to another relay or reused on another connection. The relay is permissioned by default (<code>openRegistration: false</code>), routes a maker's frame to a taker only when the taker's chosen <code>makerId</code> matches the authenticated sending socket (blocking cross-maker injection), and validates all self-reported roster strings through <code>sanitizeInfo</code> before storage, because those strings later render into the same origin that holds taker keys. It enforces payload, per-connection, per-maker, and per-IP limits (Section 6.5). It holds nothing.</p>
+
+        <h3>3.4 The maker daemon</h3>
+        <p>The maker is the always-on counterparty. In an HTLC swap it is the participant that funds second with the shorter timelock, after independently verifying the taker's contract and funded output at the required confirmation depth. It quotes and commits liquidity against a free balance defined as confirmed on-chain total minus outstanding reservations, with idempotent reservation accounting so a restart does not double-spend a UTXO into two swaps. For Monero swaps the maker plays the liveness-critical Bob role (Section 5.6) and funds the UTXO leg from a dedicated settle-coin address kept strictly separate from the HTLC pool; the daemon refuses to start if that funding address collides with the pool address. Per-swap Monero key material is derived deterministically from the maker seed and the session id, so in-flight UTXO value is always reconstructable after a crash.</p>
+
+        <h3>3.5 The non-custodial browser model</h3>
+        <p>On the website, the swap page is a self-contained client-side taker. It generates a fresh key held only in the browser, gives the user a deposit address that only the browser controls, and drives the swap against the maker over the relay; the web server holds no keys and no coins. The per-swap keys live in <code>localStorage</code> as hex under <code>testnetswap.swaps.v1</code>, are re-derived on reload, and are wiped on completion, leaving only a key-free receipt. The deposit address is the P2WPKH of the ephemeral funding key, whose private key exists only in that browser. For Monero the user deposits directly to the combined 2-of-2 lock address, which is the lock transaction itself.</p>
+        <p>The recovery blob is persisted through an awaited hook before any coins move, and persistence failure aborts the swap. In the HTLC path, <code>runHtlcTaker</code> calls <code>await onAfterFund(recovery)</code> before broadcasting the funding transaction; a throw there aborts before any coins move, and a broadcast that never lands voids the persisted blob so the deposit is treated as untouched. In the Monero path, <code>runXmrTaker</code> is fail-closed: it requires an <code>onBeforeLock</code> hook, persists the full recovery blob, and read-back-verifies it before any tXMR is locked.</p>
+
+        <h3>3.6 Vendoring integrity and content security policy</h3>
+        <p>Because a non-custodial browser guarantee ultimately rests on the served code, the shipped taker must be provably the tested taker. <code>check-vendor.mjs</code> enforces this two ways. A drift check requires every vendored <code>.js</code> under the site to be sha256-identical to its in-repo canonical source; the tool's own comment records the incident that motivated it, a silently drifted <code>swap-xmr/src/swap.js</code> that had lost a timelock cap and was caught only by luck. A <code>VENDOR.lock</code> manifest then lists a sha256 for every shipped vendored file, including third-party bundles with no in-repo canonical (the Monero engine and worker, the WebAssembly, the QR encoder). Any drift, mismatch, or missing entry exits non-zero. The check runs in CI on every push and is required before a manual publish.</p>
+        <p>The site sets a per-page Content-Security-Policy rather than one on <code>/*</code>, because Cloudflare Pages joins same-named headers, so a global policy would intersect with and silently weaken a page policy. Every page except the swap page is served under <code>default-src 'none'; script-src 'self'</code> with a tightly scoped <code>connect-src</code> allowlist. The swap page, and only it, relaxes to <code>script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:</code> with <code>worker-src 'self' blob:</code> and the two Monero node origins, plus <code>Cross-Origin-Embedder-Policy: require-corp</code>, which the threaded Monero WebAssembly needs for <code>SharedArrayBuffer</code>. That relaxation is confined to the one page that holds ephemeral spend keys, and it is defended in depth by relay input validation and by rendering all untrusted roster data through <code>textContent</code> only.</p>
+      </section>
+
+      <section class="wp-sec" id="s4">
+        <h2><span class="num">4</span><span>Same-Curve Construction: HTLC (tLTC and tBTC)</span></h2>
+
+        <h3>4.1 The contract</h3>
+        <p>The HTLC witness script, built with the vendored signer and identical on both chains, is:</p>
+        <pre><code>OP_IF
+    OP_SIZE  &lt;0x20&gt;  OP_EQUALVERIFY
+    OP_SHA256  &lt;secretHash(32)&gt;  OP_EQUALVERIFY
+    OP_DUP  OP_HASH160  &lt;recipientPkh(20)&gt;
+OP_ELSE
+    &lt;locktime&gt;  OP_CHECKLOCKTIMEVERIFY  OP_DROP
+    OP_DUP  OP_HASH160  &lt;refundPkh(20)&gt;
+OP_ENDIF
+OP_EQUALVERIFY
+OP_CHECKSIG</code></pre>
+        <p>The <code>OP_SIZE 0x20 OP_EQUALVERIFY</code> forces the preimage to be exactly 32 bytes, closing a preimage-length ambiguity. Both branches converge on a P2PKH-style tail, so the spender must place its public key on the witness stack, not just a signature. The IF branch redeems by revealing a 32-byte <code>S</code> with <code>SHA256(S) == secretHash</code>, signed by the recipient; the ELSE branch refunds after an absolute CLTV locktime, signed by the refund key. The funded output is a version-0 P2WSH; <code>verifyContract</code> recomputes the P2WSH address from the claimed witness script, requires it to equal the expected address, binds every embedded field, and fails closed if any expected argument is missing.</p>
+        <p>Locktimes are time-based per BIP65: at or above <code>CLTV_THRESHOLD = 500000000</code> they are unix timestamps. <code>buildContract</code> rejects any locktime above <code>0xffffffff</code>, the maximum 32-bit nLockTime, because a CLTV operand above that can never be satisfied by any transaction and would make the refund branch permanently unspendable (a refund-less contract). The timelock policy layer independently caps durations at <code>MAX_CLTV_TIME = 4294967295</code> (the same value), so a real swap locktime, on the order of the current unix time plus a few hours, is always well within range.</p>
+
+        <h3>4.2 Role asymmetry and timelock ordering</h3>
+        <div class="wp-table-wrap">
+          <table>
+            <thead><tr><th></th><th>Locks</th><th>Recipient (with secret)</th><th>Refund</th><th>Locktime</th></tr></thead>
+            <tbody>
+              <tr><td>Taker (initiator), funds first</td><td>send chain</td><td>maker</td><td>taker</td><td class="wp-num-col">T1 (longer)</td></tr>
+              <tr><td>Maker (participant), funds second</td><td>receive chain</td><td>taker</td><td>maker</td><td class="wp-num-col">T2 (shorter)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The load-bearing rule is <code>T1 &gt; T2</code>. The initiator generates the secret and funds first, so it must hold the longer refund window. Inverting the order would let the initiator reveal at the last moment, claim the counterparty output, and still refund its own before the participant could react.</p>
+
+        <h3>4.3 Timelock validation, in depth</h3>
+        <p><code>validateTimelocks({t1, t2, nowSec})</code> enforces, in order: both timelocks are integers; the upper bound <code>&lt;= MAX_CLTV_TIME</code> is checked first, fail-closed; both <code>&gt;= 1</code>; <code>t2 &lt; t1</code> strictly; <code>t1 &minus; t2 &gt;= MIN_T_GAP_SECS</code>; and, when <code>nowSec</code> is supplied, <code>t2 &minus; nowSec &gt;= MIN_T2_FROM_NOW_SECS</code> and <code>t1 &minus; nowSec &lt;= MAX_SWAP_SECS</code>. The constants are <code>MIN_T_GAP_SECS = 4h</code>, <code>MIN_T2_FROM_NOW_SECS = 3h</code>, and <code>MAX_SWAP_SECS = 7 days</code>; defaults are <code>T1 = 12h</code>, <code>T2 = 6h</code>.</p>
+        <div class="wp-note">One documentation-versus-code note for precision: several prose files describe the minimum gap as "2h," but the enforced constant in code is <strong>4h</strong>, raised for testnet4 confirmation lag. The enforced value is 4h.</div>
+        <p>The same constraints are re-checked at four more layers: a stateless wire floor on the ACCEPT message; a time-aware <code>checkAcceptAgainstQuote</code> that binds the quote id, pair, amounts, and absolute locktimes to the quoted durations with slack and runs the full <code>validateTimelocks</code>; <code>verifyMakerContract</code> before revealing; and an on-chain binding that asserts the script-embedded locktime equals the expected value.</p>
+
+        <h3>4.4 Protocol and state machine</h3>
+        <p>Messages are line-delimited JSON over the relay; byte fields are hex and amounts are integer satoshis:</p>
+        <pre><code>taker -&gt; maker : request_quote { from, to, send_sats }
+maker -&gt; taker : quote        { ..., recv_sats, rate, t1_hours, t2_hours, quote_id, expiry }
+taker -&gt; maker : initiate     { quote_id, secret_hash, taker_recv_pubkey, taker_refund_pubkey, ... }
+maker -&gt; taker : accept       { quote_id, recv_sats, t1, t2, maker_recv_pubkey, maker_refund_pubkey, ... }
+taker -&gt; maker : taker_locked { quote_id, contract_addr, fund_txid, vout, t1 }
+maker -&gt; taker : maker_locked { quote_id, contract_addr, fund_txid, vout, t2 }
+   (taker redeems on-chain revealing S; maker extracts S and redeems)
+any            : abort | error { quote_id?, reason }</code></pre>
+        <p><code>parseMessage</code> rejects prototype-pollution keys (<code>__proto__</code>, <code>constructor</code>, <code>prototype</code>), restricts tickers to tBTC and tLTC, and bounds sizes and amounts. The state machine runs <code>created &rarr; taker_funded &rarr; maker_funded &rarr; redeemed &rarr; completed</code>, with <code>refundable</code>, <code>refunded</code>, <code>aborted</code>, and <code>failed</code>; <code>redeemed</code> marks the point where the secret becomes public and <code>completed</code> marks the maker's follow-on claim.</p>
+
+        <h3>4.5 The reveal margin and the redeem fee ladder</h3>
+        <p>The safety-critical moment is the taker's redeem, which reveals <code>S</code>. The taker refuses to reveal unless it has a comfortable margin before T2:</p>
+        <pre><code>reveal only if   accept.t2 - now()  &gt;=  revealMinMarginSecs   ( = 2h )</code></pre>
+        <p>Otherwise it aborts without revealing and refunds at T1 instead. Once revealed, <code>S</code> is public from the first broadcast, so receipt depends on the redeem confirming before T2. To keep a low-fee redeem from stalling on a congested chain, the taker runs an RBF ladder: it rebroadcasts the same input at an escalating fee rate (<code>2 &rarr; 8 &rarr; 14 &rarr; ... &rarr; 40</code> sat/vB), spaced by a full poll window tuned to testnet4's roughly ten-minute blocks, until the redeem confirms or the ceiling is reached. Defaults are <code>redeemBumps = 7</code>, <code>redeemPollTries = 10</code>, <code>redeemPollMs = 60s</code>, <code>redeemMaxFeeRate = 40</code>.</p>
+        <p>The realized worst-case ladder duration is eight inner cycles of nine minutes, about 72 minutes, comfortably inside the 120-minute reveal margin. A runtime assertion couples the two so no caller can misconfigure them into an unsafe state:</p>
+        <pre><code>redeemBumps * (redeemPollTries - 1) * redeemPollMs  &lt;  revealMinMarginSecs * 1000</code></pre>
+        <div class="wp-note">For precision: the assertion counts seven inner windows (about 63 minutes), one fewer than the loop's realized 72; both are below 120 minutes, so the coupling holds, but the exact worst case to cite is 72 minutes.</div>
+        <p>Two independent margins protect the two parties. <code>revealMinMarginSecs</code> (2h, taker-side) ensures the taker's own redeem confirms before T2. <code>MIN_T_GAP_SECS</code> (4h, protocol-side) ensures that after the taker reveals <code>S</code>, the maker still has at least the gap (6h at defaults) to read <code>S</code> and confirm its claim on the taker's T1 output before T1 opens the taker's refund. They are not the same quantity.</p>
+        <p>After the ladder, a tail loop keeps the max-fee redeem in the mempool and keeps polling until it confirms or T2 is within <code>tailBufferSecs</code> (120s), so the redeem gets the entire remaining safe window rather than just the ladder span. The engine reports success only on an actual confirmation: the return carries a <code>confirmed</code> flag, and if the redeem is still unconfirmed it retains the full recovery blob rather than nulling it, so the host keeps monitoring instead of losing the coin should the redeem be evicted (for example by the maker's T2 refund on a stalled chain).</p>
+
+        <h3>4.6 Fees, dust, and coin selection</h3>
+        <p>Spends use a fee fixpoint loop rather than a single-pass estimate, because ECDSA DER signatures vary from 71 to 73 bytes with no low-R grinding; the loop measures the finalized virtual size and bumps the fee until it covers <code>ceil(vsize * feerate)</code>, guarding against a non-relayable, funds-stranding refund. A dust guard (<code>DUST = 546</code>) rejects outputs that cannot cover their own spend, and <code>buildFundingTx</code> enforces a minimum HTLC value <code>DUST + ceil(175 * feerate)</code> plus an exactly-one-output binding so a short or ambiguous contract output can never be reported as funded. The taker selects only confirmed inputs, largest first, never spending an unconfirmed or replaceable input into a contract.</p>
+
+        <h3>4.7 Recovery</h3>
+        <p>The recovery blob holds parameters only; the contract is re-derived deterministically in <code>refundHtlc</code>, which refuses before T1, rebuilds the ELSE-branch refund, and broadcasts. Because the blob is persisted before broadcast and voided if the broadcast never lands, a crash at any point leaves the funds either untouched or refundable, never stranded in an unknown state.</p>
+      </section>
+
+      <section class="wp-sec" id="s5">
+        <h2><span class="num">5</span><span>Cross-Curve Construction: Monero into BTC/LTC</span></h2>
+        <p>Roles here are fixed by the protocol, not by who is taker or maker: <strong>Alice</strong> is the Monero provider (locks XMR, receives the UTXO coin) and <strong>Bob</strong> is the UTXO provider (locks BTC or LTC, receives XMR, liveness-critical). The crate versions underlying the crypto claims are <code>ecdsa_fun 0.12.0</code>, <code>sigma_fun 0.9.0</code>, <code>secp256kfun 0.12.1</code>, and <code>curve25519-dalek-ng 4.1.1</code>.</p>
+
+        <h3>5.1 The idea</h3>
+        <p>A Monero output is locked to a standard address whose public spend key is the sum of two ed25519 points, <code>S_a + S_b</code>, and whose view key is <code>V_a + V_b</code>; this is ordinary point addition, not a multisig protocol. Whoever learns both private shares <code>m_a</code> and <code>m_b</code> can reconstruct the spend key and sweep the output. The swap arranges that Bob's settlement of the UTXO leg leaks <code>m_a</code> to Bob (the happy path), and that a UTXO-side refund leaks <code>m_b</code> to Alice (so she can reclaim her XMR). Everything decisional lives on the UTXO side as a small suite of scripts.</p>
+
+        <h3>5.2 The cross-curve DLEQ</h3>
+        <p>The atomic link rests on a discrete-log equality proof across two curves: one 252-bit scalar <code>s</code> is simultaneously the discrete log of a secp256k1 point <code>P = s&middot;G_secp</code> (the adaptor encryption key) and of an ed25519 point <code>M = s&middot;G_ed</code> (a Monero spend-key share). The proof is produced by <code>sigma_fun</code>'s <code>dl_secp256k1_ed25519_eq</code> construction, a bit-wise Pedersen-commitment equality proof, instantiated with domain-separated NUMS generators <code>TestnetSwap/DLEQ/secp256k1/H_p/v1</code> and <code>TestnetSwap/DLEQ/ed25519/H_q/v1</code>, with Fiat-Shamir over SHA-256. Because both group orders exceed <code>2^252</code> and every share is clamped below <code>2^252</code>, the same integer is a canonical scalar in both fields, and the secp form of a share is the byte-reversal of its ed form.</p>
+        <p>Before trusting a counterparty bundle, <code>verifyBundle</code> runs a total, never-throwing check: shapes and lengths; that the DLEQ points bind to the bundle's advertised adaptor point and Monero share (<code>dleq.secp === P</code> and <code>dleq.ed === M</code>); that <code>M</code> and <code>Vpub</code> are not the ed25519 identity (a zero share would make the combined key one-sided); that the openly shared private view scalar matches the advertised view point; and finally <code>dleq_verify</code>. Points are structurally on-curve by construction, and the secp point must be non-zero.</p>
+
+        <h3>5.3 ECDSA adaptor signatures and share transport</h3>
+        <p>The adaptor primitive is <code>ecdsa_fun</code>'s <code>Adaptor</code> with deterministic (RFC6979-style) nonces, so signatures are deterministic. The share is carried as follows:</p>
+        <ul>
+          <li><strong>Redeem leg (leaks <code>m_a</code> to Bob).</strong> Bob encrypts his ECDSA signature over the redeem sighash under Alice's point <code>P_a</code>. Alice verifies that adaptor (fail-loud), completes it using her share <code>m_a</code> to obtain Bob's finished signature, and broadcasts tx_redeem to take the UTXO coin. Publishing that signature lets Bob recover <code>m_a</code> via <code>adaptor_recover(P_a, publishedSig, redeemAdaptor)</code>, then compute the combined spend key <code>m_a + m_b</code> and sweep the XMR.</li>
+          <li><strong>Refund leg (leaks <code>m_b</code> to Alice).</strong> Symmetrically, Alice's refund adaptor is encrypted under Bob's <code>P_b</code>; Bob's refund recovers <code>m_b</code> to Alice so she can reclaim her XMR.</li>
+        </ul>
+        <p>The witness indices that carry the adaptor-completed signatures are pinned as named constants co-located with the finalizers so they cannot drift: <code>REDEEM_ADAPTOR_WITNESS_INDEX = 2</code> and <code>REFUND_ADAPTOR_WITNESS_INDEX = 1</code>. Every witness signature is asserted low-S and canonical before use, because negating <code>s</code> to force low-S would break the recovery relationship that leaks the Monero share.</p>
+
+        <h3>5.4 NUMS generators</h3>
+        <p>Both DLEQ generators are genuine Nothing-Up-My-Sleeve points, required for the soundness of the equality proof on which atomicity rests. The secp256k1 generator uses try-and-increment over <code>SHA-256(domain || counter)</code> placed into a compressed even-y encoding; the ed25519 generator does the same, then clears the cofactor with <code>mul_by_cofactor()</code> and rejects the identity, so it is guaranteed torsion-free and in the prime-order subgroup. Scalar hygiene is enforced throughout: fresh shares are drawn with a non-panicking RNG, masked below <code>2^252</code>, and rejected if zero; the DLEQ prover rejects a secret with its top four bits set (which would otherwise abort the WebAssembly module) and rejects zero.</p>
+
+        <h3>5.5 The UTXO script suite and CSV timelocks</h3>
+        <p>All decisional logic is a small set of P2WSH spends built with the vendored signer:</p>
+        <ul>
+          <li><strong>tx_lock</strong> is an unsorted 2-of-2 of Alice and Bob, so the signature order is fixed <code>[A, B]</code>.</li>
+          <li><strong>tx_redeem</strong> spends tx_lock to Alice with no sequence lock, so it can confirm immediately; its witness carries Bob's adaptor-completed signature at index 2.</li>
+          <li><strong>tx_cancel</strong> spends tx_lock after a relative timelock <code>T1</code> (BIP68 CSV) to a two-branch cancel output.</li>
+          <li>The <strong>cancel script</strong> has an IF branch that is a 2-of-2 refund (Alice plus Bob) and an ELSE branch that lets Alice punish alone after a further relative timelock <code>T2</code>, with a distinct punish key:
+            <pre><code>IF   &lt;pubA&gt; CHECKSIGVERIFY &lt;pubB&gt; CHECKSIG
+ELSE &lt;t2Blocks&gt; CHECKSEQUENCEVERIFY DROP &lt;punishPubA&gt; CHECKSIG
+ENDIF</code></pre>
+          </li>
+          <li><strong>tx_refund</strong> is Bob spending the cancel IF branch; its witness carries Alice's adaptor-completed signature at index 1, which is what leaks <code>m_b</code> to Alice.</li>
+          <li><strong>tx_punish</strong> is Alice spending the cancel ELSE branch after T2, taking Bob's coin if Bob cancelled but never refunded.</li>
+        </ul>
+        <p>Timelocks are relative block counts validated by <code>validateXmrTimelocks</code>: both within the BIP68 block range and the anti-griefing cap <code>MAX_T_BLOCKS = 1000</code>; <code>t2 &gt;= 12</code>; and <code>t1 &gt;= MIN_T1_BLOCKS = 22</code>, which is the Monero ten-block output maturity plus a twelve-block margin. Defaults are 72 blocks for tBTC and 288 for tLTC, each about twelve hours. BIP68 correctness requires transaction version 2, which the vendored signer sets by default; this is noted rather than asserted in-repo.</p>
+
+        <h3>5.6 Roles, liveness asymmetry, and theft-safe ordering</h3>
+        <p>Monero's lack of a reclaim script creates an intrinsic, one-sided liveness risk. If Bob (the UTXO provider) misses his refund window at T2, Alice can punish and take his UTXO coin while the XMR stays locked forever, because there is no Monero-side script to reclaim it. This is a property of the protocol, not a bug, and it is minimized by generous timelocks and, eventually, by aggressive refund fee-bumping (Section 7). The design deliberately assigns the liveness-critical Bob role to the always-online maker; the deployed Monero-into-UTXO direction is exactly the direction in which the browser user is Alice, the safer role. Running the reverse direction would put a casual browser user into the liveness-critical seat, which is why it is future work rather than a flag flip.</p>
+        <p>The ordering that makes theft impossible, rather than merely inconvenient, is precise:</p>
+        <ol class="wp-numbered">
+          <li>Bundles are exchanged and <code>verifyBundle</code>'d before anything funds.</li>
+          <li>tx_lock is built but not broadcast; the cancel pre-signatures and the refund adaptor are exchanged and verified; then, and only then, tx_lock is broadcast last. Bob verifies Alice's cancel pre-signature and refund adaptor before he funds.</li>
+          <li>Alice does not lock XMR until tx_lock has reached her confirmation depth and she holds Bob's cancel pre-signature (her unwind path), and she binds the funded output to the authoritative on-chain script and amount before locking.</li>
+          <li><strong>The load-bearing theft gate:</strong> Bob releases the redeem adaptor only after Alice's XMR lock is confirmed and matured (its unlocked balance meets the amount). Releasing earlier would let Alice redeem the UTXO coin, revealing <code>m_a</code>, without ever locking XMR.</li>
+          <li>Alice broadcasts tx_redeem (revealing <code>m_a</code>) only after receiving and verifying Bob's redeem adaptor and passing a fund-safety margin check, <code>redeemMarginReason</code>.</li>
+        </ol>
+        <p><code>redeemMarginReason</code> returns a reason to abort rather than reveal if: the lock is already spent (a cancel); confirmations cannot be read (fail-closed); the lock is shallower than an absolute reorg-safe floor <code>minRevealConf</code>; or the margin <code>t1Blocks - confs</code> is below <code>safetyBlocks = 12</code>. The reorg floor exists because on a low-hashrate settle chain a reorg deeper than the lock could evict it and let a maker who double-spends its funding UTXO scrape <code>m_a</code> from the mempool redeem and still keep its coin. <code>minRevealConf</code> defaults to the lock-acceptance depth (which itself defaults to 1) and is intended to be set deeper by production surfaces; a testnet4-class chain uses six confirmations. Every trip is fail-safe: it aborts to the maker-refund reclaim, never to a loss. The same margin check runs twice on the resume path, before requesting the adaptor and again immediately before broadcasting.</p>
+        <p>Bob, from the moment the XMR locks, watches the lock for tx_redeem, recovers <code>m_a</code> on sight, and sweeps before the T1 cancel window can race him; once tx_redeem is seen confirmed, the cancelled branch is unreachable and never terminal for the XMR claim. Symmetrically, because tx_punish spends a CSV input it is replaceable, so an online maker can RBF-evict a punish with a refund; punish is therefore never terminal until it confirms, and on replacement Alice recovers <code>m_b</code> and reclaims the XMR instead, which is strictly better for her.</p>
+
+        <h3>5.7 State machine, recovery, and resume</h3>
+        <p>The driver states are <code>CREATED, BTC_LOCKED, XMR_LOCKED, BTC_REDEEMED, COMPLETED, CANCELLED, REFUNDED, PUNISHED, ABORTED, FAILED</code>, with the terminal set <code>{COMPLETED, REFUNDED, PUNISHED, ABORTED, FAILED}</code>. There is a recovery path for each way a swap can stall:</p>
+        <ul>
+          <li><code>bobUnwind</code> cancels then refunds, but re-checks at every step whether Alice already redeemed; if she has, Bob recovers <code>m_a</code> and sweeps rather than refunding.</li>
+          <li><code>bobReconstructUnwind</code> rebuilds all unwind material after a crash from a minimal JSON blob persisted before the lock was broadcast, deriving everything else deterministically from Bob's seed.</li>
+          <li><code>aliceResumeRedeem</code> finishes a persisted swap forward by re-driving only the redeem tail, cross-checking the reconstructed lock address against the saved one and running the margin gate twice; it returns either <code>redeemed</code> or an explicit <code>must_reclaim</code> reason.</li>
+          <li><code>aliceReclaimOrPunish</code> is the canonical stall recovery: it gets a cancel on-chain, then races the maker's refund (recover <code>m_b</code>, sweep, the cooperative outcome) against the cancel maturing past T2 with no refund (punish for the UTXO coin), falling back to reclaim if a punish loses to an RBF refund.</li>
+        </ul>
+
+        <h3>5.8 Monero key math</h3>
+        <p>The lock address is a standard Monero address with combined public keys; the claimer restores a wallet from the combined private keys <code>m_a + m_b</code> and <code>v_a + v_b</code> and sweeps the unlocked balance home. Network bytes are mainnet 18, testnet 53, stagenet 24. In the browser, this wallet work is the injected Monero WebAssembly engine; in the maker, it is a monero-ts backend.</p>
+      </section>
+
+      <section class="wp-sec" id="s6">
+        <h2><span class="num">6</span><span>Security Analysis and Threat Model</span></h2>
+
+        <h3>6.1 The non-custodial guarantee</h3>
+        <p>The load-bearing property, stated precisely: a malicious or vanished counterparty can grief you, stalling a swap, wasting your time, and making you wait out a timelock, but it cannot take your coins. A counterparty cannot claim your contract without revealing the secret that lets you claim theirs, and if it disappears you reclaim your funds after your refund timelock. Denial of service and griefing are possible by design; theft is not. No part of the service, not the maker, not the relay, not a compromised site, ever holds your keys.</p>
+
+        <h3>6.2 Trust anchors</h3>
+        <p>Three things must still be trusted, and the project states them plainly:</p>
+        <ol class="wp-numbered">
+          <li><strong>The serving origin.</strong> A static site has no client-side way to re-verify its own code, so the "your keys stay in your browser" guarantee rests on trusting the origin that served the page; a compromised origin could strip any self-check. The mitigation is the vendoring hash manifest in CI, which makes the shipped code provably equal to the tested code, and confining the relaxed CSP to the one key-holding page.</li>
+          <li><strong>Block explorers.</strong> The taker verifies the maker's on-chain lock against a block explorer before revealing. For tBTC this is the independent mempool.space, which is what keeps the swap non-custodial; it must not be repointed at an operator-run explorer. For tLTC there is currently no reliably synced independent testnet explorer, so an operator-run one is used, an explicitly documented testnet tradeoff.</li>
+          <li><strong>The upstream cryptography.</strong> The same-curve HTLC on secp256k1 and the cross-curve adaptor and DLEQ crates on the Monero side are not formally audited. This is acceptable on testnet and never on mainnet. The protocol, transaction builders, relay, and state machines have had internal adversarial review whose findings are fixed, but that is not a substitute for an independent audit, and none is claimed.</li>
+        </ol>
+
+        <h3>6.3 Proven versus must-verify</h3>
+        <p>The Monero module's security file separates what has been demonstrated from what a real-funds deployment must still verify. <strong>Proven:</strong> the cross-curve cryptography and the atomic link (an adaptor scalar reconstructs the Monero share); a BTC adaptor 2-of-2 redeem accepted on testnet4 with the scalar recovered from the witness; the full transaction suite constructed and checked offline; the Monero address and combined-key chain byte-identical to monero-ts; and an in-process two-party simulation of the happy and refund paths with real crypto. <strong>Must verify before real funds</strong>, eight items not covered by the offline simulation: on-chain CSV enforcement of cancel and punish; a live Monero join from a real redeem witness; the timelock race against Monero's ten-block maturity tuned to measured block-time variance; refund fee-bumping near T2; counterparty abort at every stage; reorg handling gated on a confirmation-depth policy; relay-layer message binding and replay resistance; and a redeem-watch loop with retries that wins the T1 race.</p>
+
+        <h3>6.4 Reorg handling</h3>
+        <p>On the HTLC path the maker requires confirmations before acting (example config 2, code fallback 3), zero is rejected as accepting mempool-only funding, and the taker refuses to reveal within the two-hour margin of T2. On the Monero path the reveal is gated by the <code>minRevealConf</code> reorg floor and the twelve-block cancel-window margin, both fail-safe to reclaim. The general design goal is that a stall costs liveness, not funds.</p>
+
+        <h3>6.5 Denial of service and defenses</h3>
+        <p>The relay enforces, with these defaults: a 256 KiB payload cap (sized for the roughly 114 KB cross-curve DLEQ bundle, whose earlier 64 KiB cap silently broke every XMR swap); at most 500 takers, 64 makers, and 8 connections per IP; 2 pending makers per IP; 120 messages per minute per taker connection and 600 per maker; and per-IP roster rate limiting. Origin-bearing browser handshakes are matched against an optional allowlist, while origin-less non-browser clients (the loopback maker, native wallets) pass, so browser drive-by abuse is blocked without rejecting the maker. Taker-to-maker frames are shed rather than allowed to disconnect the authenticated maker under backpressure, and a flooding taker is closed after a threshold. All roster strings are validated, length- and charset-capped before storage, and rendered only as text. The maker adds economic anti-griefing limits: a global in-flight cap, one swap in flight per peer, and a deliberately short accept timeout so an unfunded reservation self-heals in minutes.</p>
+        <p>The secure defaults are shipped, not aspirational: Monero disabled (<code>xmr.enabled: false</code>) behind an explicit experimental acknowledgment, and permissioned maker registration (<code>openRegistration: false</code>, fail-closed) with ed25519 identities bound to the relay.</p>
+
+        <h3>6.6 Privacy, not anonymity</h3>
+        <p>Because one operator may run the relay, the default maker, a block explorer, and the faucet link, and because the relay routes protocol messages in plaintext, a passive operator can correlate a taker's IP, timing, amounts, deposit and receive addresses, and the taker-to-maker link. Swaps are safe (nobody can take your coins) but not anonymous; moving Monero through the system does not confer Monero's usual privacy against the operator, who sees the full message flow and both on-chain endpoints. Tor, and treating amounts and timing as observable, are the offered mitigations.</p>
+      </section>
+
+      <section class="wp-sec" id="s7">
+        <h2><span class="num">7</span><span>Limitations and Future Work</span></h2>
+        <div class="wp-callout">
+          <p class="lab">Known edges, stated honestly</p>
+          <ul>
+            <li><strong>The Monero redeem and refund transactions are fixed-fee with no RBF ladder.</strong> Both Alice's redeem and Bob's refund broadcast once at a fixed 1000-sat fee, so a congested or stalled settle chain could leave either unconfirmed past its window; the redeem case would let the maker scrape <code>m_a</code> and keep both legs, the refund case would strand XMR. This is the Monero analogue of the HTLC redeem ladder, which is implemented, and the driver's is not yet. An amount-changing RBF changes the sighash and so requires re-making the adaptor and ECDSA signatures, which is why the fix is a design task (pre-signed fee tiers or a re-run adaptor exchange) rather than a one-line change. The Monero module ships disabled partly because of this edge.</li>
+            <li><strong>The reveal reorg-floor default.</strong> <code>minRevealConf</code> defaults to the lock-acceptance depth (1); production surfaces set it deeper (six on a testnet4-class chain), but the safe default and the right per-chain depth are a tuning decision that wants live reorg measurement. The behavior is fail-safe regardless.</li>
+            <li><strong>The reverse direction (BTC or LTC into XMR)</strong> is future work. The construction is symmetric, but the reverse places the liveness-critical role on the browser user, which needs either a watchtower or a different trust model.</li>
+            <li><strong>A formal audit of the upstream crypto.</strong> The cross-curve DLEQ, adaptor, and secp256kfun crates are not formally audited; the internal soundness of the equality proof must be cited to the upstream crate, which this project instantiates rather than reimplements.</li>
+            <li><strong>Torsion checking of party-supplied points.</strong> Party-supplied ed25519 <code>M</code> points are decompressed (on-curve) but not explicitly checked for torsion-freeness; only the NUMS generators are cofactor-cleared. Whether a small-subgroup <code>M</code> is exploitable depends on the upstream crate's handling and is not determinable from this repository alone.</li>
+            <li><strong>The relaxed CSP on the swap page.</strong> The one page that holds keys runs with <code>unsafe-eval</code> because the current Monero WebAssembly build needs it. Confirming whether only <code>wasm-unsafe-eval</code> suffices, and dropping <code>unsafe-eval</code> if so, would tighten the highest-value surface.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="wp-sec" id="s8">
+        <h2><span class="num">8</span><span>Conclusion</span></h2>
+        <p>TestnetSwap demonstrates that a non-custodial cross-chain atomic swap, including the hard cross-curve Monero-into-UTXO direction, can run entirely in a browser tab with the user signing both legs and no operator ever holding keys. The same-curve HTLC path is proven end to end on testnet with an explicit, parameter-coupled timelock-safety argument. The cross-curve path implements the Gugger construction faithfully, with the theft-critical ordering, verification gates, and reorg floors in place, and with a recovery and resume story for both roles. The engineering around the cryptography, one injected taker engine across surfaces, a vendoring hash manifest that makes the shipped code provably the tested code, secure-by-default configuration, and a threat model that says exactly what remains unverified, is what makes the result trustworthy as a testnet system rather than merely clever. The honest boundaries, testnet only, experimental Monero, unaudited upstream crypto, and the specific must-verify list, are stated so that no one mistakes a research artifact for a production one.</p>
+      </section>
+
+      <section class="wp-sec" id="sa">
+        <h2><span class="num">A</span><span>Key Parameters</span></h2>
+        <div class="wp-table-wrap">
+          <table>
+            <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>HTLC default T1 / T2</td><td class="wp-num-col">12h / 6h</td></tr>
+              <tr><td>HTLC minimum T1 &minus; T2 gap (enforced)</td><td class="wp-num-col">4h</td></tr>
+              <tr><td>HTLC reveal margin before T2</td><td class="wp-num-col">2h</td></tr>
+              <tr><td>HTLC redeem RBF ladder</td><td class="wp-num-col">2 to 40 sat/vB, ~72 min worst case</td></tr>
+              <tr><td>HTLC max swap horizon</td><td class="wp-num-col">7 days</td></tr>
+              <tr><td>Dust</td><td class="wp-num-col">546 sats</td></tr>
+              <tr><td>XMR T1 / T2 default (tBTC)</td><td class="wp-num-col">72 / 72 blocks (~12h)</td></tr>
+              <tr><td>XMR minimum T1</td><td class="wp-num-col">22 blocks (10-block maturity + 12)</td></tr>
+              <tr><td>XMR redeem safety margin</td><td class="wp-num-col">12 blocks before cancel window</td></tr>
+              <tr><td>XMR reveal reorg floor</td><td><code>minRevealConf</code>, deeper than lock-accept depth</td></tr>
+              <tr><td>Monero output maturity</td><td class="wp-num-col">10 blocks</td></tr>
+              <tr><td>DLEQ / adaptor scalar bound</td><td class="wp-num-col">&lt; 2^252</td></tr>
+              <tr><td>Relay max payload</td><td class="wp-num-col">256 KiB (for ~114 KB bundle)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="wp-sec" id="sb">
+        <h2><span class="num">B</span><span>References</span></h2>
+        <ol class="wp-numbered">
+          <li>J. Gugger. <em>Bitcoin-Monero Cross-chain Atomic Swap.</em> Cryptology ePrint Archive, Report 2020/1126 (also arXiv:2101.12332).</li>
+          <li>A. Poelstra. <em>Adaptor Signatures and Scriptless Scripts.</em></li>
+          <li>comit-network. <em>cross-curve-dleq</em> (secp256k1 to ed25519 discrete-log equality).</li>
+          <li>BIP 65 (OP_CHECKLOCKTIMEVERIFY), BIP 68 (relative lock-time via nSequence), BIP 112 (OP_CHECKSEQUENCEVERIFY), BIP 143 (segwit v0 sighash), BIP 66 (strict DER), BIP 125 (opt-in RBF).</li>
+        </ol>
+        <div class="wp-cite">
+          <p class="lab">How to cite</p>
+          <p>Kristian Kramer (Tech1k). <em>TestnetSwap: Non-Custodial Cross-Chain Atomic Swaps for Testnet Coins, in the Browser.</em> Version 0.1, August 2026. <a href="https://testnetswap.com/whitepaper">testnetswap.com/whitepaper</a></p>
+          <pre><code>@techreport{kramer2026testnetswap,
+  author      = {Kramer, Kristian},
+  title       = {{TestnetSwap: Non-Custodial Cross-Chain Atomic Swaps for Testnet Coins, in the Browser}},
+  institution = {Independent},
+  year        = {2026},
+  month       = {8},
+  type        = {Whitepaper},
+  note        = {Version 0.1. Testnet only, experimental},
+  url         = {https://testnetswap.com/whitepaper}
+}</code></pre>
+        </div>
+        <p style="margin-top:22px"><a href="/how-it-works.html">&larr; How TestnetSwap works</a> &nbsp;·&nbsp; <a href="https://github.com/Tech1k/testnetswap/blob/master/WHITEPAPER.md" target="_blank" rel="noopener" class="ext">Canonical source on GitHub</a></p>
+      </section>
+    </article>
+  </div>
+
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <a class="ext" href="https://cypherfaucet.com" target="_blank" rel="noopener">Faucet</a>
+    <a class="ext" href="https://testnetpool.com" target="_blank" rel="noopener">Pool</a>
+    <a class="ext" href="https://testnetscan.com" target="_blank" rel="noopener">Explorer</a>
+    <a class="ext" href="https://testnetwallet.net" target="_blank" rel="noopener">Wallet</a>
+    <a class="ext" href="https://cyphertoshi.com" target="_blank" rel="noopener">Guides</a>
+    <a href="/donate.html">Donate</a>
+    <a href="/whitepaper.html">Whitepaper</a>
+    <a class="ext" href="https://github.com/Tech1k/testnetswap" target="_blank" rel="noopener">Source</a>
+    <span class="faint">&middot;</span>
+    <span>Made by <a class="ext" href="https://tech1k.com" target="_blank" rel="noopener">Tech1k</a></span>
+    <span class="faint">&middot; non-custodial &middot; testnet only</span>
+  </div>
+</footer>
+<script src="/assets/whitepaper.js"></script>
+</body>
+</html>

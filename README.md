@@ -6,6 +6,8 @@ It's one of a few testnet tools: [CypherFaucet](https://cypherfaucet.com) (fauce
 
 It feels like a one-provider instant exchange: pick a pair, see the rate, confirm, and get the other coin from an always-on counterparty. But it isn't custodial. Every swap is a cross-chain atomic swap, so your funds only ever sit in a contract that either completes the swap or refunds you. A vanished or malicious maker can't take your coins.
 
+📄 **[Read the whitepaper](WHITEPAPER.md)** for the full construction, the timelock-safety arguments with their parameters, and an honest threat model.
+
 ## Status
 
 Six packages, no build step; the siblings are linked by `file:` dependencies:
