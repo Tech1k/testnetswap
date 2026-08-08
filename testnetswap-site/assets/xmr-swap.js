@@ -36,6 +36,13 @@ const settleApi = (c) => ESPLORA[c] || ESPLORA_TBTC;
 // HTLC path): a reorg strand here is PERMANENT; the adaptor path has no independent timelock refund,
 // so recovery depends on the maker’s cooperative on-chain refund bound to the lock outpoint.
 const MIN_CONF = Math.max(1, Number(window.TESTNETSWAP_MIN_CONF_XMR ?? meta('testnetswap-min-conf-xmr') ?? 3) || 3);
+// Reorg-safe confirmation depth on the SETTLE chain before we lock XMR (minConf) or reveal the redeem, which
+// leaks m_a (minRevealConf). testnet4-class chains can reorg several blocks deep, so this is materially deeper
+// than a mainnet 1-3, and per-coin - matching the TestnetWallet surface. A reorg deeper than the lock AFTER
+// m_a is public could let a double-spending maker scrape it; a trip is fail-safe (aborts to reclaim, never a
+// loss). Floored at 6 so an operator can raise MIN_CONF but never drop the XMR reveal below the reorg-safe depth.
+const REORG_CONF = { tBTC: 6, tLTC: 6 };
+const settleConf = (c) => Math.max(MIN_CONF, REORG_CONF[c] || 6);
 // Monero remote nodes per network, as an ORDERED fallback list (comma-separated override via
 // window/meta). A flaky public node is what defeated earlier live runs, so wallet creation and
 // height lookups try each node in turn. Any extra node must also be in the /swap.html CSP
@@ -365,7 +372,7 @@ export async function run({ fromCoin = 'tXMR', toCoin = 'tBTC', makerId = null, 
     const params = {
       fromCoin, toCoin,                                   // coin tickers -> the driver emits coin-correct status notes (no hardcoded tBTC/tXMR)
       sendCoinNetwork: settleNet(toCoin), moneroNetwork: net,
-      t1Blocks: q.t1_blocks, t2Blocks: q.t2_blocks, lockAmount: q.lock_sats, minConf: MIN_CONF,
+      t1Blocks: q.t1_blocks, t2Blocks: q.t2_blocks, lockAmount: q.lock_sats, minConf: settleConf(toCoin), minRevealConf: settleConf(toCoin),
       xmrAmount: q.xmr_pico != null ? q.xmr_pico : Math.round(sendPico),
       xmrRestoreHeight: restoreHeight, xmrSweepDest: xmrRefund, aliceBtcDest: btcDest,
       setupTimeoutMs: 60000, lockTimeoutMs: 3600000, redeemTimeoutMs: 3600000,
@@ -563,7 +570,7 @@ async function resumeForward(rec, btn, statusEl, host) {
     const btcChain = esploraBtcChain({ btc, sc, x, api: settleApi(settle), network: settleNet(settle), fundKeyHex: rec.km.btcKey });
     const res = await runXmrResume({
       x, btc, as, driver, chains: { btc: btcChain }, km: rec.km, persisted: rec,
-      sendCoinNetwork: settleNet(settle), aliceDest: rec.btcDest, sc,
+      sendCoinNetwork: settleNet(settle), aliceDest: rec.btcDest, sc, minRevealConf: settleConf(settle),
       relayFactory: () => connectRelay(relayUrlFor(rec.makerId || null)),
       onStatus: (phase, note) => { if (note) show(phase === 'resuming' ? 'warn' : '', relabel(note)); },
     });
