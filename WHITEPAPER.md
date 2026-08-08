@@ -7,7 +7,7 @@ Independent · [testnetswap.com](https://testnetswap.com) · hello@tech1k.com
 
 ## Abstract
 
-TestnetSwap is a non-custodial cross-chain atomic swap system for cryptocurrency testnets. It runs two constructions behind one interface. The first is a same-curve Hash Time-Locked Contract (HTLC) swap between Litecoin testnet (tLTC) and Bitcoin testnet4 (tBTC), both secp256k1 UTXO chains. The second is a cross-curve construction that settles Monero (tXMR or sXMR) into either UTXO chain using a secp256k1 to ed25519 discrete-log equality proof combined with an ECDSA adaptor signature that carries a Monero spend-key share across curves. Both sides are signed in the user's own browser. No component of the service, not the maker, not the relay, and not a compromised web server, ever holds the user's keys or coins; a swap's safety rests on on-chain contracts rather than on trusting any operator. The taker engine is a single dependency-injected module that runs unchanged under Node and in the browser, and the cryptographic code is vendored byte-identically across surfaces and enforced by a hash manifest in continuous integration. This document describes the two constructions in detail, states the timelock-safety arguments with their concrete parameters, and gives an honest threat model that separates what has been demonstrated from what a deployment must still verify before it is trusted with anything of value. All coins involved are testnet coins with no monetary value by design. The upstream cryptography is not formally audited. This is a testnet research system, and nothing here claims mainnet readiness.
+TestnetSwap is a non-custodial cross-chain atomic swap system for cryptocurrency testnets. It runs two constructions behind one interface. The first is a same-curve Hash Time-Locked Contract (HTLC) swap between Litecoin testnet (tLTC) and Bitcoin testnet4 (tBTC), both secp256k1 UTXO chains. The second is a cross-curve construction that settles Monero (tXMR or sXMR) into either UTXO chain using a secp256k1 to ed25519 discrete-log equality proof combined with an ECDSA adaptor signature that carries a Monero spend-key share across curves. Both sides are signed in the user's own browser. No component of the service ever holds the user's keys or coins, whether the maker, the relay, or a compromised web server; a swap's safety rests on on-chain contracts rather than on trusting any operator. The taker engine is a single dependency-injected module that runs unchanged under Node and in the browser, and the cryptographic code is vendored byte-identically across surfaces and enforced by a hash manifest in continuous integration. This document describes the two constructions in detail, states the timelock-safety arguments with their concrete parameters, and gives a threat model that separates what has been demonstrated from what a deployment must still verify before it is trusted with anything of value. All coins involved are testnet coins with no monetary value by design. The upstream cryptography is not formally audited. This is a testnet research system, and nothing here claims mainnet readiness.
 
 ## 1. Introduction
 
@@ -22,7 +22,7 @@ Beyond the cryptography, most working trustless Monero swap implementations are 
 1. A non-custodial, in-browser implementation of the cross-curve Monero-into-UTXO adaptor swap, including the Monero-side wallet work in WebAssembly.
 2. A single taker engine, injected with all heavy dependencies, that runs byte-identically across Node (tests and a CLI), the website, and a wallet, with the shipped browser code provably equal to the tested code via a vendoring hash manifest checked in CI.
 3. A same-curve HTLC swap for tLTC and tBTC with an explicit, parameterized timelock-safety argument, including a fee-bumping redeem ladder whose worst-case duration is coupled by a runtime assertion to the secret-reveal safety margin.
-4. A threat model and a "proven versus must-verify-before-real-funds" checklist that treats the experimental Monero path honestly and keeps it disabled by default.
+4. A threat model and a "proven versus must-verify-before-real-funds" checklist for the experimental Monero path, which ships disabled by default.
 
 ### 1.3 Scope and non-goals
 
@@ -36,7 +36,7 @@ A Hash Time-Locked Contract funds an output that can be spent two ways: by anyon
 
 ### 2.2 Adaptor signatures
 
-An adaptor signature (a "one-time verifiably encrypted signature") is a signature that is encrypted under a public point `Y = y·G`: it can be verified as a commitment to a valid signature without being one, and it can be completed into a valid signature by anyone who knows the discrete log `y`. Crucially, publishing the completed signature reveals `y` to anyone holding the adaptor. Adaptor signatures let a party's on-chain spend leak a scalar secret as a side effect, which is the mechanism that binds two chains without a shared hashlock.
+An adaptor signature (a "one-time verifiably encrypted signature") is a signature that is encrypted under a public point `Y = y·G`: it can be verified as a commitment to a valid signature without being one, and it can be completed into a valid signature by anyone who knows the discrete log `y`. Publishing the completed signature reveals `y` to anyone holding the adaptor. Adaptor signatures let a party's on-chain spend leak a scalar secret as a side effect, which is the mechanism that binds two chains without a shared hashlock.
 
 ### 2.3 The Monero scriptless problem
 
@@ -236,7 +236,7 @@ Timelocks are relative block counts validated by `validateXmrTimelocks` (`swap-x
 
 Monero's lack of a reclaim script creates an intrinsic, one-sided liveness risk. If Bob (the UTXO provider) misses his refund window at T2, Alice can punish and take his UTXO coin while the XMR stays locked forever, because there is no Monero-side script to reclaim it (`swap-xmr/DESIGN.md:65-66`; `swap-xmr/SECURITY.md:30-31`). This is a property of the protocol, not a bug, and it is minimized by generous timelocks and, eventually, by aggressive refund fee-bumping (Section 7). The design deliberately assigns the liveness-critical Bob role to the always-online maker; the deployed Monero-into-UTXO direction is exactly the direction in which the browser user is Alice, the safer role. Running the reverse direction would put a casual browser user into the liveness-critical seat, which is why it is future work rather than a flag flip (`swap-xmr/src/swap.js:21-41`; `swap-xmr/DESIGN.md:3,65`).
 
-The ordering that makes theft impossible, rather than merely inconvenient, is precise (`swap-xmr/src/driver.js`, `swap-xmr/src/swap.js:84-91`):
+The ordering that rules out theft, leaving only griefing, is precise (`swap-xmr/src/driver.js`, `swap-xmr/src/swap.js:84-91`):
 
 1. Bundles are exchanged and `verifyBundle`'d before anything funds.
 2. tx_lock is built but not broadcast; the cancel pre-signatures and the refund adaptor are exchanged and verified; then, and only then, tx_lock is broadcast last. Bob verifies Alice's cancel pre-signature and refund adaptor before he funds.
@@ -265,7 +265,7 @@ The lock address is a standard Monero address with combined public keys; the cla
 
 ### 6.1 The non-custodial guarantee
 
-The load-bearing property, stated precisely (`SECURITY.md:7-9`): a malicious or vanished counterparty can grief you, stalling a swap, wasting your time, and making you wait out a timelock, but it cannot take your coins. A counterparty cannot claim your contract without revealing the secret that lets you claim theirs, and if it disappears you reclaim your funds after your refund timelock. Denial of service and griefing are possible by design; theft is not. No part of the service, not the maker, not the relay, and not a compromised site, ever holds your keys.
+The load-bearing property, stated precisely (`SECURITY.md:7-9`): a malicious or vanished counterparty can grief you, stalling a swap and making you wait out a timelock, but it cannot take your coins. A counterparty cannot claim your contract without revealing the secret that lets you claim theirs, and if it disappears you reclaim your funds after your refund timelock. Denial of service and griefing are possible by design; theft is not. No part of the service, not the maker, not the relay, and not a compromised site, ever holds your keys.
 
 ### 6.2 Trust anchors
 
@@ -304,7 +304,7 @@ Because one operator may run the relay, the default maker, a block explorer, and
 
 ## 8. Conclusion
 
-TestnetSwap demonstrates that a non-custodial cross-chain atomic swap, including the hard cross-curve Monero-into-UTXO direction, can run entirely in a browser tab with the user signing both legs and no operator ever holding keys. The same-curve HTLC path is proven end to end on testnet with an explicit, parameter-coupled timelock-safety argument. The cross-curve path implements the Gugger construction faithfully, with the theft-critical ordering, verification gates, and reorg floors in place, and with a recovery and resume story for both roles. The engineering around the cryptography, one injected taker engine across surfaces, a vendoring hash manifest that makes the shipped code provably the tested code, secure-by-default configuration, and a threat model that says exactly what remains unverified, is what makes the result trustworthy as a testnet system rather than merely clever. The honest boundaries, testnet only, experimental Monero, unaudited upstream crypto, and the specific must-verify list, are stated so that no one mistakes a research artifact for a production one.
+TestnetSwap demonstrates that a non-custodial cross-chain atomic swap, including the hard cross-curve Monero-into-UTXO direction, can run entirely in a browser tab with the user signing both legs and no operator ever holding keys. The same-curve HTLC path is proven end to end on testnet with an explicit, parameter-coupled timelock-safety argument. The cross-curve path implements the Gugger construction faithfully, with the theft-critical ordering, verification gates, and reorg floors in place, and with a recovery and resume story for both roles. The engineering around the cryptography, one injected taker engine across surfaces, a vendoring hash manifest that makes the shipped code provably the tested code, secure-by-default configuration, and a threat model that says exactly what remains unverified, is what makes the result trustworthy as a testnet system. The boundaries, testnet only, experimental Monero, unaudited upstream crypto, and the specific must-verify list, are stated so that no one mistakes a research artifact for a production one.
 
 ## Appendix A: Key Parameters
 
